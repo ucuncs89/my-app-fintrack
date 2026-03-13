@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
     provider = "prisma-client-js"
     output   = "../generated/prisma"
@@ -11,11 +8,210 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+// ─── ENUMS ──────────────────────────────────────────────
 
-    @@index([name])
+enum AccountType {
+    cash
+    bank
+    crypto_wallet
+    gold_wallet
+    investment
+}
+
+enum CategoryType {
+    income
+    expense
+    investment
+}
+
+enum TransactionType {
+    income
+    expense
+    transfer
+    investment
+}
+
+enum AssetType {
+    crypto
+    gold
+    stock
+    other
+}
+
+enum AssetTransactionType {
+    buy
+    sell
+}
+
+enum RecurringFrequency {
+    daily
+    weekly
+    monthly
+    yearly
+}
+
+// ─── MODELS ─────────────────────────────────────────────
+
+model User {
+    id           String   @id @default(uuid()) @db.Uuid
+    name         String   @db.VarChar(100)
+    email        String   @unique @db.VarChar(150)
+    passwordHash String   @map("password_hash") @db.VarChar(255)
+    createdAt    DateTime @default(now()) @map("created_at")
+
+    accounts              Account[]
+    categories            Category[]
+    transactions          Transaction[]
+    transferTransactions  TransferTransaction[]
+    assetTransactions     AssetTransaction[]
+    budgets               Budget[]
+    recurringTransactions RecurringTransaction[]
+
+    @@map("users")
+}
+
+model Account {
+    id        String      @id @default(uuid()) @db.Uuid
+    userId    String      @map("user_id") @db.Uuid
+    name      String      @db.VarChar(100)
+    type      AccountType
+    currency  String      @default("IDR") @db.VarChar(10)
+    balance   Decimal     @default(0) @db.Decimal(18, 2)
+    createdAt DateTime    @default(now()) @map("created_at")
+
+    user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+    transactions         Transaction[]
+    assetTransactions    AssetTransaction[]
+    transfersFrom        TransferTransaction[] @relation("TransferFrom")
+    transfersTo          TransferTransaction[] @relation("TransferTo")
+    recurringTransactions RecurringTransaction[]
+
+    @@map("accounts")
+}
+
+model Category {
+    id        String       @id @default(uuid()) @db.Uuid
+    userId    String       @map("user_id") @db.Uuid
+    name      String       @db.VarChar(100)
+    type      CategoryType
+    createdAt DateTime     @default(now()) @map("created_at")
+
+    user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+    transactions          Transaction[]
+    budgets               Budget[]
+    recurringTransactions RecurringTransaction[]
+
+    @@map("categories")
+}
+
+model Transaction {
+    id              String          @id @default(uuid()) @db.Uuid
+    userId          String          @map("user_id") @db.Uuid
+    accountId       String          @map("account_id") @db.Uuid
+    categoryId      String?         @map("category_id") @db.Uuid
+    type            TransactionType
+    amount          Decimal         @db.Decimal(18, 2)
+    note            String?
+    transactionDate DateTime        @map("transaction_date")
+    createdAt       DateTime        @default(now()) @map("created_at")
+
+    user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+    category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+    @@map("transactions")
+}
+
+model TransferTransaction {
+    id              String   @id @default(uuid()) @db.Uuid
+    userId          String   @map("user_id") @db.Uuid
+    fromAccountId   String   @map("from_account_id") @db.Uuid
+    toAccountId     String   @map("to_account_id") @db.Uuid
+    amount          Decimal  @db.Decimal(18, 2)
+    note            String?
+    transactionDate DateTime @map("transaction_date")
+    createdAt       DateTime @default(now()) @map("created_at")
+
+    user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    fromAccount Account @relation("TransferFrom", fields: [fromAccountId], references: [id])
+    toAccount   Account @relation("TransferTo", fields: [toAccountId], references: [id])
+
+    @@map("transfer_transactions")
+}
+
+model Asset {
+    id        String    @id @default(uuid()) @db.Uuid
+    name      String    @db.VarChar(100)
+    symbol    String?   @db.VarChar(20)
+    type      AssetType
+    createdAt DateTime  @default(now()) @map("created_at")
+
+    assetTransactions AssetTransaction[]
+    assetPrices       AssetPrice[]
+
+    @@map("assets")
+}
+
+model AssetTransaction {
+    id              String               @id @default(uuid()) @db.Uuid
+    userId          String               @map("user_id") @db.Uuid
+    assetId         String               @map("asset_id") @db.Uuid
+    accountId       String               @map("account_id") @db.Uuid
+    type            AssetTransactionType
+    quantity        Decimal              @db.Decimal(18, 8)
+    price           Decimal              @db.Decimal(18, 2)
+    total           Decimal              @db.Decimal(18, 2)
+    transactionDate DateTime             @map("transaction_date")
+    note            String?
+    createdAt       DateTime             @default(now()) @map("created_at")
+
+    user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    asset   Asset   @relation(fields: [assetId], references: [id])
+    account Account @relation(fields: [accountId], references: [id])
+
+    @@map("asset_transactions")
+}
+
+model AssetPrice {
+    id        String   @id @default(uuid()) @db.Uuid
+    assetId   String   @map("asset_id") @db.Uuid
+    price     Decimal  @db.Decimal(18, 2)
+    priceDate DateTime @map("price_date")
+
+    asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+    @@map("asset_prices")
+}
+
+model Budget {
+    id         String   @id @default(uuid()) @db.Uuid
+    userId     String   @map("user_id") @db.Uuid
+    categoryId String   @map("category_id") @db.Uuid
+    amount     Decimal  @db.Decimal(18, 2)
+    month      Int
+    year       Int
+    createdAt  DateTime @default(now()) @map("created_at")
+
+    user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    category Category @relation(fields: [categoryId], references: [id])
+
+    @@map("budgets")
+}
+
+model RecurringTransaction {
+    id         String              @id @default(uuid()) @db.Uuid
+    userId     String              @map("user_id") @db.Uuid
+    accountId  String              @map("account_id") @db.Uuid
+    categoryId String?             @map("category_id") @db.Uuid
+    type       TransactionType?
+    amount     Decimal?            @db.Decimal(18, 2)
+    frequency  RecurringFrequency?
+    nextRun    DateTime?           @map("next_run")
+    createdAt  DateTime            @default(now()) @map("created_at")
+
+    user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    account  Account   @relation(fields: [accountId], references: [id])
+    category Category? @relation(fields: [categoryId], references: [id])
+
+    @@map("recurring_transactions")
 }

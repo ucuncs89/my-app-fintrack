@@ -121,11 +121,104 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
-exports.Prisma.PostScalarFieldEnum = {
+exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
   name: 'name',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  email: 'email',
+  passwordHash: 'passwordHash',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.AccountScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  type: 'type',
+  currency: 'currency',
+  balance: 'balance',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.CategoryScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  type: 'type',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.TransactionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  accountId: 'accountId',
+  categoryId: 'categoryId',
+  type: 'type',
+  amount: 'amount',
+  note: 'note',
+  transactionDate: 'transactionDate',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.TransferTransactionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  fromAccountId: 'fromAccountId',
+  toAccountId: 'toAccountId',
+  amount: 'amount',
+  note: 'note',
+  transactionDate: 'transactionDate',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.AssetScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  symbol: 'symbol',
+  type: 'type',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.AssetTransactionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  assetId: 'assetId',
+  accountId: 'accountId',
+  type: 'type',
+  quantity: 'quantity',
+  price: 'price',
+  total: 'total',
+  transactionDate: 'transactionDate',
+  note: 'note',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.AssetPriceScalarFieldEnum = {
+  id: 'id',
+  assetId: 'assetId',
+  price: 'price',
+  priceDate: 'priceDate'
+};
+
+exports.Prisma.BudgetScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  categoryId: 'categoryId',
+  amount: 'amount',
+  month: 'month',
+  year: 'year',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.RecurringTransactionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  accountId: 'accountId',
+  categoryId: 'categoryId',
+  type: 'type',
+  amount: 'amount',
+  frequency: 'frequency',
+  nextRun: 'nextRun',
+  createdAt: 'createdAt'
 };
 
 exports.Prisma.SortOrder = {
@@ -138,9 +231,61 @@ exports.Prisma.QueryMode = {
   insensitive: 'insensitive'
 };
 
+exports.Prisma.NullsOrder = {
+  first: 'first',
+  last: 'last'
+};
+exports.AccountType = exports.$Enums.AccountType = {
+  cash: 'cash',
+  bank: 'bank',
+  crypto_wallet: 'crypto_wallet',
+  gold_wallet: 'gold_wallet',
+  investment: 'investment'
+};
+
+exports.CategoryType = exports.$Enums.CategoryType = {
+  income: 'income',
+  expense: 'expense',
+  investment: 'investment'
+};
+
+exports.TransactionType = exports.$Enums.TransactionType = {
+  income: 'income',
+  expense: 'expense',
+  transfer: 'transfer',
+  investment: 'investment'
+};
+
+exports.AssetType = exports.$Enums.AssetType = {
+  crypto: 'crypto',
+  gold: 'gold',
+  stock: 'stock',
+  other: 'other'
+};
+
+exports.AssetTransactionType = exports.$Enums.AssetTransactionType = {
+  buy: 'buy',
+  sell: 'sell'
+};
+
+exports.RecurringFrequency = exports.$Enums.RecurringFrequency = {
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+  yearly: 'yearly'
+};
 
 exports.Prisma.ModelName = {
-  Post: 'Post'
+  User: 'User',
+  Account: 'Account',
+  Category: 'Category',
+  Transaction: 'Transaction',
+  TransferTransaction: 'TransferTransaction',
+  Asset: 'Asset',
+  AssetTransaction: 'AssetTransaction',
+  AssetPrice: 'AssetPrice',
+  Budget: 'Budget',
+  RecurringTransaction: 'RecurringTransaction'
 };
 
 /**
