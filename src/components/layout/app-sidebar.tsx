@@ -1,16 +1,18 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight,
   BarChart3,
   LayoutDashboard,
+  LogIn,
+  LogOut,
   PieChart,
   PiggyBank,
   Settings,
   Wallet,
-} from 'lucide-react';
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -24,24 +26,26 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from '~/components/ui/sidebar';
+} from "~/components/ui/sidebar";
+import { authClient } from "~/lib/auth-client";
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'Transactions', href: '/transactions', icon: ArrowLeftRight },
-  { label: 'Accounts', href: '/accounts', icon: Wallet },
-  { label: 'Portfolio', href: '/portfolio', icon: PieChart },
-  { label: 'Budget', href: '/budget', icon: PiggyBank },
-  { label: 'Reports', href: '/reports', icon: BarChart3 },
+  { label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { label: "Transactions", href: "/transactions", icon: ArrowLeftRight },
+  { label: "Accounts", href: "/accounts", icon: Wallet },
+  { label: "Portfolio", href: "/portfolio", icon: PieChart },
+  { label: "Budget", href: "/budget", icon: PiggyBank },
+  { label: "Reports", href: "/reports", icon: BarChart3 },
 ] as const;
 
 export const AppSidebar = (
-  props: React.ComponentProps<typeof Sidebar>
+  props: React.ComponentProps<typeof Sidebar>,
 ): React.ReactElement => {
   const pathname = usePathname();
+  const { data: session } = authClient.useSession();
 
   const isActive = (href: string): boolean => {
-    if (href === '/') return pathname === '/';
+    if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
   };
 
@@ -52,7 +56,7 @@ export const AppSidebar = (
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                   <Wallet className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
@@ -92,7 +96,7 @@ export const AppSidebar = (
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              isActive={isActive('/settings')}
+              isActive={isActive("/settings")}
               tooltip="Settings"
             >
               <Link href="/settings">
@@ -101,6 +105,28 @@ export const AppSidebar = (
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          {session ? (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                tooltip="Sign Out"
+                onClick={() => {
+                  void authClient.signOut({ callbackURL: "/sign-in" });
+                }}
+              >
+                <LogOut />
+                <span>Sign Out</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ) : (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Sign In">
+                <Link href="/sign-in">
+                  <LogIn />
+                  <span>Sign In</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
