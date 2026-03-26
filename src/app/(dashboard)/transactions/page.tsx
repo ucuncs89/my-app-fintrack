@@ -1,15 +1,16 @@
 import { api, HydrateClient } from '~/trpc/server';
-import { DEMO_USER_ID } from '~/lib/format';
+import { getSessionUserId } from '~/lib/auth-session';
 import { TransactionList } from './_components/transaction-list';
 
 export default async function TransactionsPage(): Promise<React.ReactElement> {
+  const userId = await getSessionUserId();
   let transactions: Awaited<
     ReturnType<typeof api.transaction.getAll>
   > = { transactions: [], nextCursor: undefined };
 
   try {
     transactions = await api.transaction.getAll({
-      userId: DEMO_USER_ID,
+      userId,
       limit: 50,
     });
   } catch {

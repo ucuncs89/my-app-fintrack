@@ -1,12 +1,17 @@
 import { api, HydrateClient } from '~/trpc/server';
-import { DEMO_USER_ID } from '~/lib/format';
+import { getSessionUserId } from '~/lib/auth-session';
 import { AccountList } from './_components/account-list';
 
 export default async function AccountsPage(): Promise<React.ReactElement> {
+  const userId = await getSessionUserId();
   let accounts: Awaited<ReturnType<typeof api.account.getAll>> = [];
+  let totalBalance: Awaited<ReturnType<typeof api.account.getTotalBalance>> = 0;
 
   try {
-    accounts = await api.account.getAll({ userId: DEMO_USER_ID });
+    [accounts, totalBalance] = await Promise.all([
+      api.account.getAll({ userId }),
+      api.account.getTotalBalance({ userId }),
+    ]);
   } catch {
     // DB not available
   }
@@ -21,7 +26,11 @@ export default async function AccountsPage(): Promise<React.ReactElement> {
           </p>
         </div>
 
-        <AccountList accounts={accounts} />
+        <AccountList
+          initialAccounts={accounts}
+          initialTotalBalance={totalBalance}
+          userId={userId}
+        />
       </div>
     </HydrateClient>
   );

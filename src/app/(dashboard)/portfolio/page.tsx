@@ -1,15 +1,16 @@
 import { api, HydrateClient } from '~/trpc/server';
-import { DEMO_USER_ID } from '~/lib/format';
+import { getSessionUserId } from '~/lib/auth-session';
 import { PortfolioList } from './_components/portfolio-list';
 
 export default async function PortfolioPage(): Promise<React.ReactElement> {
+  const userId = await getSessionUserId();
   let holdings: Awaited<
     ReturnType<typeof api.assetTransaction.getPortfolioSummary>
   > = [];
 
   try {
     holdings = await api.assetTransaction.getPortfolioSummary({
-      userId: DEMO_USER_ID,
+      userId,
     });
   } catch {
     // DB not available

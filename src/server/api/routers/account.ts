@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AccountType } from '../../../../generated/prisma';
 
+import { accountController } from '~/server/controllers/account.controller';
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc';
 
 const accountInput = z.object({
@@ -10,42 +11,37 @@ const accountInput = z.object({
   balance: z.number().default(0),
 });
 
+const userIdUuid = z.string().uuid();
+
 export const accountRouter = createTRPCRouter({
   getAll: publicProcedure
-    .input(z.object({ userId: z.string().uuid() }))
+    .input(z.object({ userId: userIdUuid }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.account.findMany({
-        where: { userId: input.userId },
-        orderBy: { createdAt: 'desc' },
-      });
+      return accountController.getAll(ctx.db, input.userId);
     }),
 
   getById: publicProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        userId: userIdUuid,
+      })
+    )
     .query(async ({ ctx, input }) => {
-      return ctx.db.account.findUnique({
-        where: { id: input.id },
-      });
+      return accountController.getById(ctx.db, input.id, input.userId);
     }),
 
   create: publicProcedure
-    .input(accountInput.extend({ userId: z.string().uuid() }))
+    .input(accountInput.extend({ userId: userIdUuid }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.account.create({
-        data: {
-          userId: input.userId,
-          name: input.name,
-          type: input.type,
-          currency: input.currency,
-          balance: input.balance,
-        },
-      });
+      return accountController.create(ctx.db, input);
     }),
 
   update: publicProcedure
     .input(
       z.object({
         id: z.string().uuid(),
+        userId: userIdUuid,
         name: z.string().min(1).optional(),
         type: z.nativeEnum(AccountType).optional(),
         currency: z.string().optional(),
@@ -53,28 +49,23 @@ export const accountRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      return ctx.db.account.update({
-        where: { id },
-        data,
-      });
+      return accountController.update(ctx.db, input);
     }),
 
   delete: publicProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        userId: userIdUuid,
+      })
+    )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.account.delete({
-        where: { id: input.id },
-      });
+      return accountController.delete(ctx.db, input.id, input.userId);
     }),
 
   getTotalBalance: publicProcedure
-    .input(z.object({ userId: z.string().uuid() }))
+    .input(z.object({ userId: userIdUuid }))
     .query(async ({ ctx, input }) => {
-      const result = await ctx.db.account.aggregate({
-        where: { userId: input.userId },
-        _sum: { balance: true },
-      });
-      return result._sum.balance ?? 0;
+      return accountController.getTotalBalance(ctx.db, input.userId);
     }),
 });

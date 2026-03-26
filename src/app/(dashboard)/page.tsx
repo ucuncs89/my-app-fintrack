@@ -1,13 +1,13 @@
 import { api, HydrateClient } from '~/trpc/server';
+import { getSessionUserId } from '~/lib/auth-session';
 import { SummaryCards } from './_components/summary-cards';
 import { MonthlyChart } from './_components/monthly-chart';
 import { ExpenseCategoryChart } from './_components/expense-category-chart';
 import { RecentTransactions } from './_components/recent-transactions';
 import { PortfolioSummary } from './_components/portfolio-summary';
 
-const DEMO_USER_ID = '00000000-0000-0000-0000-000000000001';
-
 export default async function DashboardPage(): Promise<React.ReactElement> {
+  const userId = await getSessionUserId();
   let summary = { totalBalance: 0, income: 0, expense: 0, netWorth: 0 };
   let recentTransactions: Awaited<
     ReturnType<typeof api.dashboard.getRecentTransactions>
@@ -25,14 +25,14 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
   try {
     [summary, recentTransactions, monthlyTrend, expenseByCategory, portfolio] =
       await Promise.all([
-        api.dashboard.getSummary({ userId: DEMO_USER_ID }),
+        api.dashboard.getSummary({ userId }),
         api.dashboard.getRecentTransactions({
-          userId: DEMO_USER_ID,
+          userId,
           limit: 10,
         }),
-        api.dashboard.getMonthlyTrend({ userId: DEMO_USER_ID, months: 6 }),
-        api.dashboard.getExpenseByCategory({ userId: DEMO_USER_ID }),
-        api.assetTransaction.getPortfolioSummary({ userId: DEMO_USER_ID }),
+        api.dashboard.getMonthlyTrend({ userId, months: 6 }),
+        api.dashboard.getExpenseByCategory({ userId }),
+        api.assetTransaction.getPortfolioSummary({ userId }),
       ]);
   } catch {
     // DB not available yet, show empty state

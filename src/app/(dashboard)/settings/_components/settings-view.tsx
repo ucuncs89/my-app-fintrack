@@ -8,24 +8,16 @@ import {
   CardTitle,
 } from '~/components/ui/card';
 import { Badge } from '~/components/ui/badge';
-import { Separator } from '~/components/ui/separator';
+import { CategoriesManager } from './categories-manager';
+import { type RouterOutputs } from '~/trpc/react';
 
-type Category = {
-  id: string;
-  name: string;
-  type: string;
-};
-
-type Account = {
-  id: string;
-  name: string;
-  type: string;
-  currency: string;
-};
+type Category = RouterOutputs['category']['getAll'][number];
+type Account = RouterOutputs['account']['getAll'][number];
 
 type SettingsViewProps = {
-  categories: Category[];
-  accounts: Account[];
+  initialCategories: Category[];
+  initialAccounts: Account[];
+  userId: string;
 };
 
 const typeLabels: Record<string, string> = {
@@ -39,19 +31,10 @@ const typeLabels: Record<string, string> = {
 };
 
 export const SettingsView = ({
-  categories,
-  accounts,
+  initialCategories,
+  initialAccounts,
+  userId,
 }: SettingsViewProps): React.ReactElement => {
-  const groupedCategories = categories.reduce<Record<string, Category[]>>(
-    (acc, cat) => {
-      const key = cat.type;
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(cat);
-      return acc;
-    },
-    {}
-  );
-
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <Card>
@@ -69,55 +52,24 @@ export const SettingsView = ({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Categories</CardTitle>
-          <CardDescription>
-            {categories.length} categories configured
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {categories.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No categories yet.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {Object.entries(groupedCategories).map(
-                ([type, cats], idx, arr) => (
-                  <div key={type}>
-                    <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-                      {typeLabels[type] ?? type}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {cats.map((cat) => (
-                        <Badge key={cat.id} variant="outline">
-                          {cat.name}
-                        </Badge>
-                      ))}
-                    </div>
-                    {idx < arr.length - 1 && <Separator className="mt-3" />}
-                  </div>
-                )
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <CategoriesManager
+        initialCategories={initialCategories}
+        userId={userId}
+      />
 
       <Card>
         <CardHeader>
           <CardTitle>Accounts</CardTitle>
           <CardDescription>
-            {accounts.length} accounts configured
+            {initialAccounts.length} accounts configured
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {accounts.length === 0 ? (
+          {initialAccounts.length === 0 ? (
             <p className="text-sm text-muted-foreground">No accounts yet.</p>
           ) : (
             <div className="space-y-2">
-              {accounts.map((account) => (
+              {initialAccounts.map((account) => (
                 <div
                   key={account.id}
                   className="flex items-center justify-between rounded-lg border p-2.5"

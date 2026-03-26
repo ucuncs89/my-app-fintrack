@@ -1,27 +1,18 @@
 import { z } from 'zod';
 import { AssetType } from '../../../../generated/prisma';
 
+import { assetController } from '~/server/controllers/asset.controller';
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc';
 
 export const assetRouter = createTRPCRouter({
   getAll: publicProcedure.query(async ({ ctx }) => {
-    return ctx.db.asset.findMany({
-      orderBy: { name: 'asc' },
-    });
+    return assetController.getAll(ctx.db);
   }),
 
   getById: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.asset.findUnique({
-        where: { id: input.id },
-        include: {
-          assetPrices: {
-            orderBy: { priceDate: 'desc' },
-            take: 1,
-          },
-        },
-      });
+      return assetController.getById(ctx.db, input.id);
     }),
 
   create: publicProcedure
@@ -33,7 +24,7 @@ export const assetRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.asset.create({ data: input });
+      return assetController.create(ctx.db, input);
     }),
 
   update: publicProcedure
@@ -46,14 +37,13 @@ export const assetRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      return ctx.db.asset.update({ where: { id }, data });
+      return assetController.update(ctx.db, input);
     }),
 
   delete: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.asset.delete({ where: { id: input.id } });
+      return assetController.delete(ctx.db, input.id);
     }),
 
   updatePrice: publicProcedure
@@ -65,7 +55,7 @@ export const assetRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.assetPrice.create({ data: input });
+      return assetController.updatePrice(ctx.db, input);
     }),
 
   getPriceHistory: publicProcedure
@@ -76,10 +66,10 @@ export const assetRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      return ctx.db.assetPrice.findMany({
-        where: { assetId: input.assetId },
-        orderBy: { priceDate: 'desc' },
-        take: input.limit,
-      });
+      return assetController.getPriceHistory(
+        ctx.db,
+        input.assetId,
+        input.limit
+      );
     }),
 });

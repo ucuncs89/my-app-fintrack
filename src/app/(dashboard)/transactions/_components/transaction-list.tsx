@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight } from 'lucide-react';
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight } from "lucide-react";
 
-import { cn } from '~/lib/utils';
-import { formatCurrency, formatDate } from '~/lib/format';
+import { cn } from "~/lib/utils";
+import { formatCurrency, formatDate } from "~/lib/format";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '~/components/ui/card';
+} from "~/components/ui/card";
 import {
   Table,
   TableBody,
@@ -18,8 +18,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '~/components/ui/table';
-import { Badge } from '~/components/ui/badge';
+} from "~/components/ui/table";
+import { Badge } from "~/components/ui/badge";
 
 type Transaction = {
   id: string;
@@ -35,43 +35,44 @@ type TransactionListProps = {
   transactions: Transaction[];
 };
 
-const typeConfig: Record<
-  string,
-  {
-    icon: React.ComponentType<{ className?: string }>;
-    color: string;
-    sign: string;
-    label: string;
-    variant: 'default' | 'secondary' | 'destructive' | 'outline';
-  }
-> = {
+type TxRowConfig = {
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  sign: string;
+  label: string;
+  variant: "default" | "secondary" | "destructive" | "outline";
+};
+
+const defaultTxConfig: TxRowConfig = {
+  icon: ArrowUpRight,
+  color: "text-red-600",
+  sign: "-",
+  label: "Expense",
+  variant: "destructive",
+};
+
+const typeConfig: Record<string, TxRowConfig> = {
   income: {
     icon: ArrowDownLeft,
-    color: 'text-green-600',
-    sign: '+',
-    label: 'Income',
-    variant: 'secondary',
+    color: "text-green-600",
+    sign: "+",
+    label: "Income",
+    variant: "secondary",
   },
-  expense: {
-    icon: ArrowUpRight,
-    color: 'text-red-600',
-    sign: '-',
-    label: 'Expense',
-    variant: 'destructive',
-  },
+  expense: defaultTxConfig,
   transfer: {
     icon: ArrowLeftRight,
-    color: 'text-blue-600',
-    sign: '',
-    label: 'Transfer',
-    variant: 'outline',
+    color: "text-blue-600",
+    sign: "",
+    label: "Transfer",
+    variant: "outline",
   },
   investment: {
     icon: ArrowUpRight,
-    color: 'text-amber-600',
-    sign: '-',
-    label: 'Investment',
-    variant: 'default',
+    color: "text-amber-600",
+    sign: "-",
+    label: "Investment",
+    variant: "default",
   },
 };
 
@@ -84,12 +85,12 @@ export const TransactionList = ({
         <CardTitle>All Transactions</CardTitle>
         <CardDescription>
           {transactions.length} transaction
-          {transactions.length !== 1 ? 's' : ''} found
+          {transactions.length !== 1 ? "s" : ""} found
         </CardDescription>
       </CardHeader>
       <CardContent>
         {transactions.length === 0 ? (
-          <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
+          <div className="text-muted-foreground flex h-64 items-center justify-center text-sm">
             No transactions yet. Create your first transaction to get started.
           </div>
         ) : (
@@ -106,7 +107,7 @@ export const TransactionList = ({
             </TableHeader>
             <TableBody>
               {transactions.map((tx) => {
-                const config = typeConfig[tx.type] ?? typeConfig.expense;
+                const config = typeConfig[tx.type] ?? defaultTxConfig;
 
                 return (
                   <TableRow key={tx.id}>
@@ -116,10 +117,12 @@ export const TransactionList = ({
                     <TableCell>
                       <Badge variant={config.variant}>{config.label}</Badge>
                     </TableCell>
-                    <TableCell>{tx.category?.name ?? '-'}</TableCell>
+                    <TableCell>{tx.category?.name ?? "-"}</TableCell>
                     <TableCell>{tx.account.name}</TableCell>
                     <TableCell>{formatDate(tx.transactionDate)}</TableCell>
-                    <TableCell className={cn('text-right font-semibold', config.color)}>
+                    <TableCell
+                      className={cn("text-right font-semibold", config.color)}
+                    >
                       {config.sign}
                       {formatCurrency(Number(tx.amount))}
                     </TableCell>

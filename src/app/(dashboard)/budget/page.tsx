@@ -1,14 +1,15 @@
 import { api, HydrateClient } from '~/trpc/server';
-import { DEMO_USER_ID } from '~/lib/format';
+import { getSessionUserId } from '~/lib/auth-session';
 import { BudgetList } from './_components/budget-list';
 
 export default async function BudgetPage(): Promise<React.ReactElement> {
+  const userId = await getSessionUserId();
   const now = new Date();
   let budgets: Awaited<ReturnType<typeof api.budget.getAll>> = [];
 
   try {
     budgets = await api.budget.getAll({
-      userId: DEMO_USER_ID,
+      userId,
       month: now.getMonth() + 1,
       year: now.getFullYear(),
     });

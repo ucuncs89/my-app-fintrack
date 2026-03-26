@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight,
   BarChart3,
+  BookMarked,
   LayoutDashboard,
   LogIn,
   LogOut,
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Transactions", href: "/transactions", icon: ArrowLeftRight },
   { label: "Accounts", href: "/accounts", icon: Wallet },
+  { label: "Asset catalog", href: "/asset-catalog", icon: BookMarked },
   { label: "Portfolio", href: "/portfolio", icon: PieChart },
   { label: "Budget", href: "/budget", icon: PiggyBank },
   { label: "Reports", href: "/reports", icon: BarChart3 },
@@ -110,7 +112,9 @@ export const AppSidebar = (
               <SidebarMenuButton
                 tooltip="Sign Out"
                 onClick={() => {
-                  void authClient.signOut({ callbackURL: "/sign-in" });
+                  void authClient.signOut().then(() => {
+                    window.location.assign("/sign-in");
+                  });
                 }}
               >
                 <LogOut />

@@ -1,15 +1,16 @@
 import { api, HydrateClient } from '~/trpc/server';
-import { DEMO_USER_ID } from '~/lib/format';
+import { getSessionUserId } from '~/lib/auth-session';
 import { SettingsView } from './_components/settings-view';
 
 export default async function SettingsPage(): Promise<React.ReactElement> {
+  const userId = await getSessionUserId();
   let categories: Awaited<ReturnType<typeof api.category.getAll>> = [];
   let accounts: Awaited<ReturnType<typeof api.account.getAll>> = [];
 
   try {
     [categories, accounts] = await Promise.all([
-      api.category.getAll({ userId: DEMO_USER_ID }),
-      api.account.getAll({ userId: DEMO_USER_ID }),
+      api.category.getAll({ userId }),
+      api.account.getAll({ userId }),
     ]);
   } catch {
     // DB not available
@@ -25,7 +26,11 @@ export default async function SettingsPage(): Promise<React.ReactElement> {
           </p>
         </div>
 
-        <SettingsView categories={categories} accounts={accounts} />
+        <SettingsView
+          initialCategories={categories}
+          initialAccounts={accounts}
+          userId={userId}
+        />
       </div>
     </HydrateClient>
   );
