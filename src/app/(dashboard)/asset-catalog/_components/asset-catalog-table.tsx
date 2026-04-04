@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus, Trash2, TrendingUp } from "lucide-react";
+import { History, Pencil, Plus, Trash2, TrendingUp } from "lucide-react";
 
 import { AssetType } from "../../../../../generated/prisma";
 import {
@@ -53,6 +53,7 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { api, type RouterOutputs } from "~/trpc/react";
+import { AssetPriceHistoryDialog } from "./asset-price-history";
 
 type Asset = RouterOutputs["asset"]["getAll"][number];
 
@@ -94,6 +95,7 @@ export const AssetCatalogTable = ({
   const [editTarget, setEditTarget] = useState<Asset | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Asset | null>(null);
   const [priceTarget, setPriceTarget] = useState<Asset | null>(null);
+  const [historyTarget, setHistoryTarget] = useState<Asset | null>(null);
 
   const [createForm, setCreateForm] = useState(emptyForm);
   const [editForm, setEditForm] = useState(emptyForm);
@@ -150,7 +152,8 @@ export const AssetCatalogTable = ({
   const priceError = toTrpcMessage(updatePriceMutation.error);
 
   return (
-    <Card>
+    <>
+      <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <CardTitle>Assets</CardTitle>
@@ -198,6 +201,15 @@ export const AssetCatalogTable = ({
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Price history"
+                          onClick={() => setHistoryTarget(asset)}
+                        >
+                          <History className="size-4" />
+                        </Button>
                         <Button
                           type="button"
                           variant="ghost"
@@ -522,6 +534,12 @@ export const AssetCatalogTable = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+      </Card>
+
+      <AssetPriceHistoryDialog
+        asset={historyTarget}
+        onClose={() => setHistoryTarget(null)}
+      />
+    </>
   );
 };

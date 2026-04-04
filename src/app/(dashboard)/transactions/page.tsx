@@ -1,18 +1,25 @@
-import { api, HydrateClient } from '~/trpc/server';
-import { getSessionUserId } from '~/lib/auth-session';
-import { TransactionList } from './_components/transaction-list';
+import { api, HydrateClient } from "~/trpc/server";
+import { getSessionUserId } from "~/lib/auth-session";
+import { TransactionsPageClient } from "./_components/transactions-page-client";
 
 export default async function TransactionsPage(): Promise<React.ReactElement> {
   const userId = await getSessionUserId();
-  let transactions: Awaited<
+
+  let initialTransactionPage: Awaited<
     ReturnType<typeof api.transaction.getAll>
   > = { transactions: [], nextCursor: undefined };
+  let initialTransfers: Awaited<ReturnType<typeof api.transfer.getAll>> = [];
+  let initialAccounts: Awaited<ReturnType<typeof api.account.getAll>> = [];
+  let initialCategories: Awaited<ReturnType<typeof api.category.getAll>> = [];
 
   try {
-    transactions = await api.transaction.getAll({
-      userId,
-      limit: 50,
-    });
+    [initialTransactionPage, initialTransfers, initialAccounts, initialCategories] =
+      await Promise.all([
+        api.transaction.getAll({ userId, limit: 50 }),
+        api.transfer.getAll({ userId, limit: 50 }),
+        api.account.getAll({ userId }),
+        api.category.getAll({ userId }),
+      ]);
   } catch {
     // DB not available
   }
@@ -23,12 +30,18 @@ export default async function TransactionsPage(): Promise<React.ReactElement> {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Transactions</h1>
           <p className="text-muted-foreground">
-            Manage all your income, expense, transfer, and investment
-            transactions.
+            Manage income, expense, and investment entries, or move money
+            between accounts.
           </p>
         </div>
 
-        <TransactionList transactions={transactions.transactions} />
+        <TransactionsPageClient
+          userId={userId}
+          initialTransactionPage={initialTransactionPage}
+          initialTransfers={initialTransfers}
+          initialAccounts={initialAccounts}
+          initialCategories={initialCategories}
+        />
       </div>
     </HydrateClient>
   );

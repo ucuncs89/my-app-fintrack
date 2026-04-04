@@ -6,13 +6,17 @@ export default async function BudgetPage(): Promise<React.ReactElement> {
   const userId = await getSessionUserId();
   const now = new Date();
   let budgets: Awaited<ReturnType<typeof api.budget.getAll>> = [];
+  let categories: Awaited<ReturnType<typeof api.category.getAll>> = [];
 
   try {
-    budgets = await api.budget.getAll({
-      userId,
-      month: now.getMonth() + 1,
-      year: now.getFullYear(),
-    });
+    [budgets, categories] = await Promise.all([
+      api.budget.getAll({
+        userId,
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
+      }),
+      api.category.getAll({ userId }),
+    ]);
   } catch {
     // DB not available
   }
@@ -27,7 +31,11 @@ export default async function BudgetPage(): Promise<React.ReactElement> {
           </p>
         </div>
 
-        <BudgetList budgets={budgets} />
+        <BudgetList
+          initialBudgets={budgets}
+          initialCategories={categories}
+          userId={userId}
+        />
       </div>
     </HydrateClient>
   );

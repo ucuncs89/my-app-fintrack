@@ -9,6 +9,7 @@ import {
 } from '~/components/ui/card';
 import { Badge } from '~/components/ui/badge';
 import { CategoriesManager } from './categories-manager';
+import { AccountsInSettings } from './accounts-in-settings';
 import { type RouterOutputs } from '~/trpc/react';
 
 type Category = RouterOutputs['category']['getAll'][number];
@@ -18,16 +19,6 @@ type SettingsViewProps = {
   initialCategories: Category[];
   initialAccounts: Account[];
   userId: string;
-};
-
-const typeLabels: Record<string, string> = {
-  income: 'Income',
-  expense: 'Expense',
-  investment: 'Investment',
-  cash: 'Cash',
-  bank: 'Bank',
-  crypto_wallet: 'Crypto Wallet',
-  gold_wallet: 'Gold Wallet',
 };
 
 export const SettingsView = ({
@@ -40,7 +31,7 @@ export const SettingsView = ({
       <Card>
         <CardHeader>
           <CardTitle>Currency</CardTitle>
-          <CardDescription>Set your default currency</CardDescription>
+          <CardDescription>Default currency for your accounts</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 rounded-lg border p-3">
@@ -60,28 +51,13 @@ export const SettingsView = ({
       <Card>
         <CardHeader>
           <CardTitle>Accounts</CardTitle>
-          <CardDescription>
-            {initialAccounts.length} accounts configured
-          </CardDescription>
+          <CardDescription>Manage your financial accounts</CardDescription>
         </CardHeader>
-        <CardContent>
-          {initialAccounts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No accounts yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {initialAccounts.map((account) => (
-                <div
-                  key={account.id}
-                  className="flex items-center justify-between rounded-lg border p-2.5"
-                >
-                  <span className="text-sm font-medium">{account.name}</span>
-                  <Badge variant="secondary">
-                    {typeLabels[account.type] ?? account.type}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
+        <CardContent className="space-y-3">
+          <AccountsInSettings
+            initialAccounts={initialAccounts}
+            userId={userId}
+          />
         </CardContent>
       </Card>
 

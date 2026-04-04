@@ -1,3 +1,4 @@
+import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { TransactionType } from '../../../../generated/prisma';
 
@@ -53,10 +54,15 @@ export const transactionRouter = createTRPCRouter({
     }),
 
   getById: publicProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        userId: z.string().uuid(),
+      })
+    )
     .query(async ({ ctx, input }) => {
-      return ctx.db.transaction.findUnique({
-        where: { id: input.id },
+      return ctx.db.transaction.findFirst({
+        where: { id: input.id, userId: input.userId },
         include: { account: true, category: true },
       });
     }),
@@ -93,24 +99,88 @@ export const transactionRouter = createTRPCRouter({
     .input(
       z.object({
         id: z.string().uuid(),
-        categoryId: z.string().uuid().optional(),
+        userId: z.string().uuid(),
+        accountId: z.string().uuid().optional(),
+        categoryId: z.string().uuid().optional().nullable(),
+        type: z.nativeEnum(TransactionType).optional(),
         amount: z.number().positive().optional(),
-        note: z.string().optional(),
+        note: z.string().optional().nullable(),
         transactionDate: z.date().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      return ctx.db.transaction.update({ where: { id }, data });
+      const { id, userId, ...patch } = input;
+
+      return ctx.db.$transaction(async (tx) => {
+        const old = await tx.transaction.findFirst({
+          where: { id, userId },
+        });
+
+        if (!old) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Transaction not found.',
+          });
+        }
+
+        const oldAmount = Number(old.amount);
+        const revertDelta = old.type === 'income' ? -oldAmount : oldAmount;
+
+        await tx.account.update({
+          where: { id: old.accountId },
+          data: { balance: { increment: revertDelta } },
+        });
+
+        const nextAccountId = patch.accountId ?? old.accountId;
+        const nextType = patch.type ?? old.type;
+        const nextAmount = patch.amount ?? oldAmount;
+        const nextCategoryId =
+          patch.categoryId !== undefined ? patch.categoryId : old.categoryId;
+        const nextNote = patch.note !== undefined ? patch.note : old.note;
+        const nextDate = patch.transactionDate ?? old.transactionDate;
+
+        const updated = await tx.transaction.update({
+          where: { id },
+          data: {
+            accountId: nextAccountId,
+            type: nextType,
+            amount: nextAmount,
+            categoryId: nextCategoryId,
+            note: nextNote,
+            transactionDate: nextDate,
+          },
+        });
+
+        const applyDelta = nextType === 'income' ? nextAmount : -nextAmount;
+
+        await tx.account.update({
+          where: { id: nextAccountId },
+          data: { balance: { increment: applyDelta } },
+        });
+
+        return updated;
+      });
     }),
 
   delete: publicProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        userId: z.string().uuid(),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       return ctx.db.$transaction(async (tx) => {
-        const transaction = await tx.transaction.findUniqueOrThrow({
-          where: { id: input.id },
+        const transaction = await tx.transaction.findFirst({
+          where: { id: input.id, userId: input.userId },
         });
+
+        if (!transaction) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Transaction not found.',
+          });
+        }
 
         const balanceRevert =
           transaction.type === 'income'
