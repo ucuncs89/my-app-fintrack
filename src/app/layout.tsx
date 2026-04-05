@@ -4,6 +4,7 @@ import { type Metadata } from 'next';
 
 import { TRPCReactProvider } from '~/trpc/react';
 import { TooltipProvider } from '~/components/ui/tooltip';
+import { ThemeProvider } from '~/components/theme-provider';
 
 export const metadata: Metadata = {
   title: 'FinTrack - Financial Dashboard',
@@ -15,11 +16,18 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>): React.ReactElement {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
-        <TRPCReactProvider>
-          <TooltipProvider>{children}</TooltipProvider>
-        </TRPCReactProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <TRPCReactProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+          </TRPCReactProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

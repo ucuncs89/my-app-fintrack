@@ -1,20 +1,13 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { LogIn, LogOut, Settings, Wallet } from 'lucide-react';
+
 import {
-  ArrowLeftRight,
-  BarChart3,
-  BookMarked,
-  LayoutDashboard,
-  LogIn,
-  LogOut,
-  PieChart,
-  PiggyBank,
-  Settings,
-  Wallet,
-} from "lucide-react";
-
+  DASHBOARD_FULL_NAV,
+  isDashboardNavHrefActive,
+} from '~/components/layout/dashboard-nav';
 import {
   Sidebar,
   SidebarContent,
@@ -27,29 +20,14 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "~/components/ui/sidebar";
-import { authClient } from "~/lib/auth-client";
-
-const NAV_ITEMS = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { label: "Transactions", href: "/transactions", icon: ArrowLeftRight },
-  { label: "Accounts", href: "/accounts", icon: Wallet },
-  { label: "Asset catalog", href: "/asset-catalog", icon: BookMarked },
-  { label: "Portfolio", href: "/portfolio", icon: PieChart },
-  { label: "Budget", href: "/budget", icon: PiggyBank },
-  { label: "Reports", href: "/reports", icon: BarChart3 },
-] as const;
+} from '~/components/ui/sidebar';
+import { authClient } from '~/lib/auth-client';
 
 export const AppSidebar = (
   props: React.ComponentProps<typeof Sidebar>,
 ): React.ReactElement => {
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
-
-  const isActive = (href: string): boolean => {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
-  };
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -75,11 +53,11 @@ export const AppSidebar = (
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_ITEMS.map((item) => (
+              {DASHBOARD_FULL_NAV.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
-                    isActive={isActive(item.href)}
+                    isActive={isDashboardNavHrefActive(pathname, item.href)}
                     tooltip={item.label}
                   >
                     <Link href={item.href}>
@@ -98,7 +76,7 @@ export const AppSidebar = (
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              isActive={isActive("/settings")}
+              isActive={isDashboardNavHrefActive(pathname, '/settings')}
               tooltip="Settings"
             >
               <Link href="/settings">
@@ -113,7 +91,7 @@ export const AppSidebar = (
                 tooltip="Sign Out"
                 onClick={() => {
                   void authClient.signOut().then(() => {
-                    window.location.assign("/sign-in");
+                    window.location.assign('/sign-in');
                   });
                 }}
               >
