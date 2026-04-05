@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { auth } from "~/lib/auth";
 
 const DASHBOARD_PATHS = [
   "/",
@@ -28,9 +27,19 @@ export const middleware = async (
 ): Promise<NextResponse> => {
   const pathname = request.nextUrl.pathname;
 
-  const session = await auth.api.getSession({
-    headers: request.headers,
-  });
+  let session = null;
+  try {
+    const res = await fetch(`${request.nextUrl.origin}/api/auth/get-session`, {
+      headers: {
+        cookie: request.headers.get("cookie") || "",
+      },
+    });
+    if (res.ok) {
+      session = await res.json();
+    }
+  } catch (error) {
+    // session remains null
+  }
 
   if (isAuthPath(pathname)) {
     if (session) {
@@ -49,7 +58,6 @@ export const middleware = async (
 };
 
 export const config = {
-  runtime: "nodejs",
   matcher: [
     "/",
     "/transactions/:path*",
