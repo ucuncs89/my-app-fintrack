@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDownLeft, ArrowLeftRight, Pencil, Plus, Trash2, ArrowUpRight } from "lucide-react";
 
-import { CategoryType, TransactionType } from "../../../../../generated/prisma";
+import { type CategoryType, TransactionType } from "../../../../../generated/prisma";
 import { invalidateAfterTransactionMutation } from "~/lib/invalidate-finance-queries";
 import {
   AlertDialog,
