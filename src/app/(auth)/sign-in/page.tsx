@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "~/lib/auth-client";
@@ -21,7 +21,7 @@ import {
   FieldLabel,
 } from "~/components/ui/field";
 
-export default function SignInPage(): React.ReactElement {
+function SignInContent(): React.ReactElement {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
@@ -110,5 +110,13 @@ export default function SignInPage(): React.ReactElement {
         </CardFooter>
       </form>
     </Card>
+  );
+}
+
+export default function SignInPage(): React.ReactElement {
+  return (
+    <Suspense fallback={null}>
+      <SignInContent />
+    </Suspense>
   );
 }
