@@ -98,15 +98,6 @@ function SignInContent(): React.ReactElement {
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "Signing in..." : "Sign In"}
           </Button>
-          <p className="text-muted-foreground text-center text-sm">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/sign-up"
-              className="text-primary underline-offset-4 hover:underline"
-            >
-              Sign up
-            </Link>
-          </p>
         </CardFooter>
       </form>
     </Card>

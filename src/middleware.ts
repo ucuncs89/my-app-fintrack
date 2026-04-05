@@ -10,7 +10,8 @@ const DASHBOARD_PATHS = [
   "/reports",
   "/settings",
 ];
-const AUTH_PATHS = ["/sign-in", "/sign-up"];
+const AUTH_PATHS = ["/sign-in"];
+
 
 const isDashboardPath = (pathname: string): boolean => {
   if (pathname === "/") return true;
@@ -68,6 +69,6 @@ export const config = {
     "/reports/:path*",
     "/settings/:path*",
     "/sign-in",
-    "/sign-up",
   ],
 };
+
