@@ -18,12 +18,18 @@ export const MobileBottomNav = (): React.ReactElement => {
   return (
     <nav
       className={cn(
-        'bg-background/95 supports-backdrop-filter:bg-background/80 fixed inset-x-0 bottom-0 z-50 border-t backdrop-blur-md md:hidden',
+        'fixed inset-x-0 bottom-0 z-50 md:hidden',
+        'border-t border-border/60',
+        'bg-background/90 supports-backdrop-filter:bg-background/75 backdrop-blur-xl',
         'pb-[max(0.5rem,env(safe-area-inset-bottom))]',
       )}
-      aria-label="Primary"
+      aria-label="Primary navigation"
+      role="navigation"
     >
-      <div className="grid h-14 grid-cols-4">
+      {/* Active item gradient glow on top */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+
+      <div className="grid h-16 grid-cols-4">
         {DASHBOARD_BOTTOM_PRIMARY_NAV.map((item) => {
           const active = isDashboardNavHrefActive(pathname, item.href);
           return (
@@ -31,25 +37,62 @@ export const MobileBottomNav = (): React.ReactElement => {
               key={item.href}
               href={item.href}
               className={cn(
-                'text-muted-foreground flex min-h-12 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium transition-colors',
-                active && 'text-foreground',
+                'relative flex min-h-[56px] flex-col items-center justify-center gap-1 px-2',
+                'text-[11px] font-medium leading-tight transition-all duration-200',
+                active
+                  ? 'text-primary'
+                  : 'text-muted-foreground active:text-foreground',
               )}
             >
-              <item.icon
-                className={cn('size-5 shrink-0', active && 'text-primary')}
-                aria-hidden
-              />
-              <span className="line-clamp-1 w-full text-center">{item.label}</span>
+              {/* Icon container with active bg pill */}
+              <div
+                className={cn(
+                  'flex items-center justify-center rounded-xl px-3 py-1 transition-all duration-200',
+                  active
+                    ? 'bg-primary/10 dark:bg-primary/15'
+                    : 'bg-transparent',
+                )}
+              >
+                <item.icon
+                  className={cn(
+                    'size-5 shrink-0 transition-all duration-200',
+                    active ? 'text-primary' : 'text-muted-foreground',
+                    active && 'scale-110',
+                  )}
+                  strokeWidth={active ? 2.2 : 1.8}
+                  aria-hidden
+                />
+              </div>
+              <span
+                className={cn(
+                  'line-clamp-1 w-full text-center transition-all duration-200',
+                  active ? 'font-semibold text-primary' : 'text-muted-foreground',
+                )}
+              >
+                {item.label}
+              </span>
+              {/* Active dot indicator */}
+              {active && <span className="mobile-nav-active-dot" />}
             </Link>
           );
         })}
+
+        {/* More / Menu button */}
         <button
           type="button"
-          className="text-muted-foreground hover:text-foreground flex min-h-12 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium transition-colors"
+          id="mobile-nav-menu-btn"
+          className={cn(
+            'relative flex min-h-[56px] flex-col items-center justify-center gap-1 px-2',
+            'text-[11px] font-medium leading-tight',
+            'text-muted-foreground transition-all duration-200',
+            'active:text-foreground',
+          )}
           onClick={() => setOpenMobile(true)}
         >
-          <Menu className="size-5 shrink-0" aria-hidden />
-          <span>Menu</span>
+          <div className="flex items-center justify-center rounded-xl bg-transparent px-3 py-1 transition-all duration-200">
+            <Menu className="size-5 shrink-0" strokeWidth={1.8} aria-hidden />
+          </div>
+          <span className="line-clamp-1 w-full text-center">Menu</span>
         </button>
       </div>
     </nav>

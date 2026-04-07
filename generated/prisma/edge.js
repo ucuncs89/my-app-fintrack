@@ -311,7 +311,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/home/ucuncs/node-project/my-app-fintrack/generated/prisma",
+      "value": "C:\\works\\ilham firdaus\\rnd\\t3\\my-app-dashboard\\generated\\prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -320,16 +320,16 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "debian-openssl-3.0.x",
+        "value": "windows",
         "native": true
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/home/ucuncs/node-project/my-app-fintrack/prisma/schema.prisma",
+    "sourceFilePath": "C:\\works\\ilham firdaus\\rnd\\t3\\my-app-dashboard\\prisma\\schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": "../../.env",
+    "rootEnvPath": null,
     "schemaEnvPath": "../../.env"
   },
   "relativePath": "../../prisma",
