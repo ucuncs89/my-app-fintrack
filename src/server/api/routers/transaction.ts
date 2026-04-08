@@ -50,7 +50,17 @@ export const transactionRouter = createTRPCRouter({
         nextCursor = nextItem?.id;
       }
 
-      return { transactions, nextCursor };
+      // Serialize Prisma Decimal → number so Client Components can receive them
+      const serialized = transactions.map((tx) => ({
+        ...tx,
+        amount: Number(tx.amount),
+        account: { ...tx.account, balance: Number(tx.account.balance) },
+        category: tx.category
+          ? { ...tx.category }
+          : null,
+      }));
+
+      return { transactions: serialized, nextCursor };
     }),
 
   getById: publicProcedure

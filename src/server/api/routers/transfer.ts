@@ -11,12 +11,19 @@ export const transferRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      return ctx.db.transferTransaction.findMany({
+      const results = await ctx.db.transferTransaction.findMany({
         where: { userId: input.userId },
         include: { fromAccount: true, toAccount: true },
         orderBy: { transactionDate: 'desc' },
         take: input.limit,
       });
+      // Serialize Prisma Decimal → number
+      return results.map((t) => ({
+        ...t,
+        amount: Number(t.amount),
+        fromAccount: { ...t.fromAccount, balance: Number(t.fromAccount.balance) },
+        toAccount: { ...t.toAccount, balance: Number(t.toAccount.balance) },
+      }));
     }),
 
   create: publicProcedure

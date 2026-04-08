@@ -26,12 +26,11 @@ export default async function TransactionsPage(): Promise<React.ReactElement> {
 
   return (
     <HydrateClient>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Transactions</h1>
-          <p className="text-muted-foreground">
-            Manage income, expense, and investment entries, or move money
-            between accounts.
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage income, expenses, investments, and transfers.
           </p>
         </div>
 
