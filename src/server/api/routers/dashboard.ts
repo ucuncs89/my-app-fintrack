@@ -304,5 +304,181 @@ export const dashboardRouter = createTRPCRouter({
         }))
         .sort((a, b) => b.amount - a.amount);
     }),
+  getAIInsights: publicProcedure
+    .input(z.object({ userId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+      
+      const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+      // Average expenses over last 3 months
+      const startOfThreeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+
+      const [currentMonthData, lastMonthData, categoryExpenses, budgets, totalBalance, threeMonthExpense] = await Promise.all([
+        // 1. Current month totals
+        Promise.all([
+          ctx.db.transaction.aggregate({
+            where: { userId: input.userId, type: 'income', transactionDate: { gte: startOfCurrentMonth, lte: endOfCurrentMonth } },
+            _sum: { amount: true },
+          }),
+          ctx.db.transaction.aggregate({
+            where: { userId: input.userId, type: 'expense', transactionDate: { gte: startOfCurrentMonth, lte: endOfCurrentMonth } },
+            _sum: { amount: true },
+          }),
+        ]),
+        // 2. Last month totals
+        Promise.all([
+          ctx.db.transaction.aggregate({
+            where: { userId: input.userId, type: 'income', transactionDate: { gte: startOfLastMonth, lte: endOfLastMonth } },
+            _sum: { amount: true },
+          }),
+          ctx.db.transaction.aggregate({
+            where: { userId: input.userId, type: 'expense', transactionDate: { gte: startOfLastMonth, lte: endOfLastMonth } },
+            _sum: { amount: true },
+          }),
+        ]),
+        // 3. Category expenses current month
+        ctx.db.transaction.groupBy({
+          by: ['categoryId'],
+          where: { userId: input.userId, type: 'expense', transactionDate: { gte: startOfCurrentMonth, lte: endOfCurrentMonth }, categoryId: { not: null } },
+          _sum: { amount: true },
+        }),
+        // 4. Budgets current month
+        ctx.db.budget.findMany({
+          where: { userId: input.userId, month: currentMonth, year: currentYear },
+          include: { category: true }
+        }),
+        // 5. Total Balance
+        ctx.db.account.aggregate({
+          where: { userId: input.userId },
+          _sum: { balance: true }
+        }),
+        // 6. Last 3 months expense
+        ctx.db.transaction.aggregate({
+          where: { userId: input.userId, type: 'expense', transactionDate: { gte: startOfThreeMonthsAgo, lte: endOfLastMonth } },
+          _sum: { amount: true }
+        })
+      ]);
+
+      const currentIncome = Number(currentMonthData[0]._sum.amount ?? 0);
+      const currentExpense = Number(currentMonthData[1]._sum.amount ?? 0);
+      const lastExpense = Number(lastMonthData[1]._sum.amount ?? 0);
+      const currentBalance = Number(totalBalance._sum.balance ?? 0);
+      const avgMonthlyExpense = Number(threeMonthExpense._sum.amount ?? 0) / 3;
+
+      const insights: {
+        type: 'info' | 'warning' | 'success';
+        message: string;
+        title: string;
+      }[] = [];
+
+      // 1. Savings Rate Insight
+      if (currentIncome > 0) {
+        const savingsRate = ((currentIncome - currentExpense) / currentIncome) * 100;
+        if (savingsRate > 20) {
+          insights.push({
+            type: 'success',
+            title: 'Kesehatan Keuangan Bagus',
+            message: `Rate tabungan Anda ${savingsRate.toFixed(1)}% bulan ini. Pertahankan gaya hidup ini!`,
+          });
+        } else if (savingsRate < 0) {
+          insights.push({
+            type: 'warning',
+            title: 'Defisit Anggaran',
+            message: 'Pengeluaran Anda bulan ini melebihi pemasukan. Coba cek kembali daftar belanja Anda.',
+          });
+        }
+      }
+
+      // 2. Month-over-Month Comparison
+      if (lastExpense > 0) {
+        const change = ((currentExpense - lastExpense) / lastExpense) * 100;
+        if (change > 15) {
+          insights.push({
+            type: 'warning',
+            title: 'Lonjakan Pengeluaran',
+            message: `Pengeluaran Anda naik ${change.toFixed(1)}% dibanding bulan lalu. Pastikan ini pengeluaran terencana.`,
+          });
+        } else if (change < -10) {
+          insights.push({
+            type: 'success',
+            title: 'Hemat Banget!',
+            message: `Hebat! Pengeluaran Anda turun ${Math.abs(change).toFixed(1)}% dibanding bulan lalu.`,
+          });
+        }
+      }
+
+      // 3. Budget Alerts
+      for (const budget of budgets) {
+        const spent = Number(categoryExpenses.find(e => e.categoryId === budget.categoryId)?._sum.amount ?? 0);
+        const ratio = (spent / Number(budget.amount)) * 100;
+        
+        if (ratio >= 100) {
+          insights.push({
+            type: 'warning',
+            title: 'Budget Terlampaui!',
+            message: `Pengeluaran di kategori '${budget.category.name}' sudah melebihi budget Anda sebesar ${ratio.toFixed(1)}%.`,
+          });
+        } else if (ratio >= 80) {
+          insights.push({
+            type: 'warning',
+            title: 'Waspada Budget',
+            message: `Pengeluaran kategori '${budget.category.name}' sudah mencapai ${ratio.toFixed(1)}% dari budget.`,
+          });
+        }
+      }
+
+      // 4. Emergency Fund Analysis
+      if (avgMonthlyExpense > 0) {
+        const monthsCovered = currentBalance / avgMonthlyExpense;
+        if (monthsCovered >= 6) {
+          insights.push({
+            type: 'success',
+            title: 'Dana Darurat Aman',
+            message: `Saldo Anda cukup untuk menanggung pengeluaran selama ${monthsCovered.toFixed(1)} bulan ke depan. Hebat!`,
+          });
+        } else if (monthsCovered < 3) {
+          insights.push({
+            type: 'info',
+            title: 'Fokus Tabungan',
+            message: `Saldo Anda baru mencakup ${monthsCovered.toFixed(1)} bulan pengeluaran. Usahakan minimal 3-6 bulan sebagai dana darurat.`,
+          });
+        }
+      }
+
+      // 5. Daily Spending Pace (Pro-rated)
+      const dayOfMonth = now.getDate();
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const expectedPace = (currentExpense / dayOfMonth) * daysInMonth;
+      
+      if (currentIncome > 0 && expectedPace > currentIncome * 0.9) {
+        insights.push({
+          type: 'warning',
+          title: 'Kecepatan Belanja',
+          message: `Jika pola belanja berlanjut, Anda diprediksi akan menghabiskan ${((expectedPace/currentIncome)*100).toFixed(1)}% income bulan ini.`,
+        });
+      }
+
+      // Default if no insights generated
+      if (insights.length === 0) {
+        insights.push({
+          type: 'info',
+          title: 'Terus Catat!',
+          message: 'Semakin banyak data yang Anda masukkan, semakin akurat saran yang bisa kami berikan.',
+        });
+      }
+
+      // Sort insights: warning first, then high success, then info
+      return insights.sort((a, b) => {
+        const order = { warning: 0, success: 1, info: 2 };
+        return order[a.type] - order[b.type];
+      });
+    }),
 });
 

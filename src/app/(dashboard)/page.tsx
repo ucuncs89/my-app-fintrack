@@ -1,6 +1,7 @@
 import { api, HydrateClient } from '~/trpc/server';
 import { getSessionUserId } from '~/lib/auth-session';
 import { SummaryCards } from './_components/summary-cards';
+import { AIInsight } from './_components/ai-insight';
 import { MonthlyChart } from './_components/monthly-chart';
 import { ExpenseCategoryChart } from './_components/expense-category-chart';
 import { RecentTransactions } from './_components/recent-transactions';
@@ -47,6 +48,8 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
             Overview of your financial condition.
           </p>
         </div>
+
+        <AIInsight userId={userId} />
 
         <SummaryCards
           totalBalance={summary.totalBalance}
