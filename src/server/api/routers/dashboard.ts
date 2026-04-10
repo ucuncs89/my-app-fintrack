@@ -352,7 +352,8 @@ export const dashboardRouter = createTRPCRouter({
         // 4. Budgets current month
         ctx.db.budget.findMany({
           where: { userId: input.userId, month: currentMonth, year: currentYear },
-          include: { category: true }
+          include: { category: true },
+          orderBy: { category: { name: 'asc' } }
         }),
         // 5. Total Balance
         ctx.db.account.aggregate({
@@ -477,7 +478,11 @@ export const dashboardRouter = createTRPCRouter({
       // Sort insights: warning first, then high success, then info
       return insights.sort((a, b) => {
         const order = { warning: 0, success: 1, info: 2 };
-        return order[a.type] - order[b.type];
+        if (order[a.type] !== order[b.type]) {
+          return order[a.type] - order[b.type];
+        }
+        // Secondary sort by title to ensure stable ordering within same type
+        return a.title.localeCompare(b.title);
       });
     }),
 });
