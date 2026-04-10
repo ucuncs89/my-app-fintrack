@@ -17,7 +17,7 @@ export const AIInsight = ({ userId }: AIInsightProps): React.ReactElement => {
     { userId },
     {
       refetchOnWindowFocus: false,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 1, // 1 minute
     }
   );
 
@@ -79,9 +79,9 @@ export const AIInsight = ({ userId }: AIInsightProps): React.ReactElement => {
           </div>
         ) : insights && insights.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {insights.map((insight, idx) => (
+            {insights.map((insight) => (
               <div 
-                key={idx} 
+                key={`${insight.title}-${insight.message}`} 
                 className={cn(
                   "group relative rounded-xl border p-4 transition-all hover:scale-[1.02] hover:shadow-md",
                   getBgColor(insight.type)
