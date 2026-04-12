@@ -18,8 +18,8 @@ export default async function BudgetPage(): Promise<React.ReactElement> {
       api.category.getAll({ userId }),
     ]);
 
-    budgets = JSON.parse(JSON.stringify(budgetsData));
-    categories = JSON.parse(JSON.stringify(categoriesData));
+    budgets = JSON.parse(JSON.stringify(budgetsData)) as typeof budgets;
+    categories = JSON.parse(JSON.stringify(categoriesData)) as typeof categories;
   } catch {
     // DB not available
   }

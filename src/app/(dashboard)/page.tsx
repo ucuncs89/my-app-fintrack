@@ -37,11 +37,11 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
       ]);
 
     // Serialize to plain objects to avoid Decimal serialization issues between Server and Client Components
-    summary = JSON.parse(JSON.stringify(summaryData));
-    recentTransactions = JSON.parse(JSON.stringify(recentTx));
-    monthlyTrend = JSON.parse(JSON.stringify(trend));
-    expenseByCategory = JSON.parse(JSON.stringify(cat));
-    portfolio = JSON.parse(JSON.stringify(port));
+    summary = JSON.parse(JSON.stringify(summaryData)) as typeof summary;
+    recentTransactions = JSON.parse(JSON.stringify(recentTx)) as typeof recentTransactions;
+    monthlyTrend = JSON.parse(JSON.stringify(trend)) as typeof monthlyTrend;
+    expenseByCategory = JSON.parse(JSON.stringify(cat)) as typeof expenseByCategory;
+    portfolio = JSON.parse(JSON.stringify(port)) as typeof portfolio;
   } catch {
     // DB not available yet, show empty state
   }

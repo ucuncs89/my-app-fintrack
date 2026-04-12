@@ -53,7 +53,7 @@ export const MobileBottomNav = (): React.ReactElement => {
         </AnimatePresence>
 
         {/* Navigation Items (First 2) */}
-        {DASHBOARD_BOTTOM_PRIMARY_NAV.slice(0, 2).map((item, idx) => {
+        {DASHBOARD_BOTTOM_PRIMARY_NAV.slice(0, 2).map((item, _idx) => {
           const active = isDashboardNavHrefActive(pathname, item.href);
           return (
             <Link

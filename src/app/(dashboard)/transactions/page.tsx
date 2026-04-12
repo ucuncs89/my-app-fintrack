@@ -22,10 +22,10 @@ export default async function TransactionsPage(): Promise<React.ReactElement> {
       ]);
 
     // Serialize to plain objects to avoid Decimal serialization issues between Server and Client Components
-    initialTransactionPage = JSON.parse(JSON.stringify(txPage));
-    initialTransfers = JSON.parse(JSON.stringify(transfers));
-    initialAccounts = JSON.parse(JSON.stringify(accounts));
-    initialCategories = JSON.parse(JSON.stringify(categories));
+    initialTransactionPage = JSON.parse(JSON.stringify(txPage)) as typeof txPage;
+    initialTransfers = JSON.parse(JSON.stringify(transfers)) as typeof transfers;
+    initialAccounts = JSON.parse(JSON.stringify(accounts)) as typeof accounts;
+    initialCategories = JSON.parse(JSON.stringify(categories)) as typeof categories;
   } catch {
     // DB not available
   }

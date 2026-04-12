@@ -12,7 +12,7 @@ export default async function PortfolioPage(): Promise<React.ReactElement> {
     const holdingsData = await api.assetTransaction.getPortfolioSummary({
       userId,
     });
-    holdings = JSON.parse(JSON.stringify(holdingsData));
+    holdings = JSON.parse(JSON.stringify(holdingsData)) as typeof holdings;
   } catch {
     // DB not available
   }

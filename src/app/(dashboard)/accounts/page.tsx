@@ -13,8 +13,8 @@ export default async function AccountsPage(): Promise<React.ReactElement> {
       api.account.getTotalBalance({ userId }),
     ]);
 
-    accounts = JSON.parse(JSON.stringify(accountsData));
-    totalBalance = JSON.parse(JSON.stringify(balanceData));
+    accounts = JSON.parse(JSON.stringify(accountsData)) as typeof accounts;
+    totalBalance = JSON.parse(JSON.stringify(balanceData)) as typeof totalBalance;
   } catch {
     // DB not available
   }

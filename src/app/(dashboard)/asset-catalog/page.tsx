@@ -6,7 +6,7 @@ export default async function AssetCatalogPage(): Promise<React.ReactElement> {
 
   try {
     const assetsData = await api.asset.getAll();
-    assets = JSON.parse(JSON.stringify(assetsData));
+    assets = JSON.parse(JSON.stringify(assetsData)) as typeof assets;
   } catch {
     // DB not available
   }
