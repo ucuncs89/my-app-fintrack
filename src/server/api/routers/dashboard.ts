@@ -304,6 +304,227 @@ export const dashboardRouter = createTRPCRouter({
         }))
         .sort((a, b) => b.amount - a.amount);
     }),
+
+  getBudgetVsActualByRange: publicProcedure
+    .input(
+      z.object({
+        userId: z.string().uuid(),
+        startYear: z.number(),
+        startMonth: z.number().min(1).max(12),
+        endYear: z.number(),
+        endMonth: z.number().min(1).max(12),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const startDate = new Date(input.startYear, input.startMonth - 1, 1);
+      const endDate = new Date(input.endYear, input.endMonth, 0, 23, 59, 59);
+
+      // 1. Get all budgets in range
+      const budgets = await ctx.db.budget.findMany({
+        where: {
+          userId: input.userId,
+          OR: [
+            {
+              year: { gt: input.startYear, lt: input.endYear },
+            },
+            {
+              year: input.startYear,
+              month: { gte: input.startMonth },
+            },
+            {
+              year: input.endYear,
+              month: { lte: input.endMonth },
+            },
+          ],
+        },
+        include: { category: true },
+      });
+
+      // Group budgets by category
+      const categoryBudgets: Record<string, { name: string; amount: number }> = {};
+      budgets.forEach((b) => {
+        categoryBudgets[b.categoryId] ??= { name: b.category.name, amount: 0 };
+        categoryBudgets[b.categoryId]!.amount += Number(b.amount);
+      });
+
+      // 2. Get actual expenses in range
+      const expenses = await ctx.db.transaction.groupBy({
+        by: ['categoryId'],
+        where: {
+          userId: input.userId,
+          type: 'expense',
+          transactionDate: { gte: startDate, lte: endDate },
+          categoryId: { in: Object.keys(categoryBudgets) },
+        },
+        _sum: { amount: true },
+      });
+
+      // 3. Merge
+      return Object.entries(categoryBudgets).map(([categoryId, data]) => {
+        const actual = Number(
+          expenses.find((e) => e.categoryId === categoryId)?._sum.amount ?? 0
+        );
+        return {
+          category: data.name,
+          budgeted: data.amount,
+          actual,
+          remaining: data.amount - actual,
+          percentage: data.amount > 0 ? (actual / data.amount) * 100 : 0,
+        };
+      }).sort((a, b) => b.budgeted - a.budgeted);
+    }),
+
+  getNetWorthTrendByRange: publicProcedure
+    .input(
+      z.object({
+        userId: z.string().uuid(),
+        startYear: z.number(),
+        startMonth: z.number().min(1).max(12),
+        endYear: z.number(),
+        endMonth: z.number().min(1).max(12),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      // Get current total balance
+      const totalBalanceResult = await ctx.db.account.aggregate({
+        where: { userId: input.userId },
+        _sum: { balance: true },
+      });
+      const currentBalance = Number(totalBalanceResult._sum.balance ?? 0);
+
+      // Get all transactions after the end of the range to walk backwards
+      const rangeEndDate = new Date(input.endYear, input.endMonth, 0, 23, 59, 59);
+
+      // This is a simplified approach. Ideally we'd have a balance snapshot or 
+      // calculate net change for every single day.
+      // netWorthAtRangeEnd = currentBalance - sum(futureIncome) + sum(futureExpense)
+      // We need it per month in the range.
+      
+      const transactionsInRange = await ctx.db.transaction.findMany({
+        where: {
+          userId: input.userId,
+          transactionDate: { gte: new Date(input.startYear, input.startMonth - 1, 1) },
+        },
+        orderBy: { transactionDate: 'desc' },
+      });
+
+      const results = [];
+      let runningBalance = currentBalance;
+
+      // Filter transactions that happened AFTER the range
+      const afterRange = transactionsInRange.filter(t => t.transactionDate > rangeEndDate);
+      for (const t of afterRange) {
+        if (t.type === 'income') runningBalance -= Number(t.amount);
+        if (t.type === 'expense') runningBalance += Number(t.amount);
+        // asset transactions and transfers also affect balance but Transaction type handles basic inc/exp
+      }
+
+      // Now runningBalance is the balance at the end of the requested range.
+      // Walk backwards through months in the range
+      let year = input.endYear;
+      let month = input.endMonth;
+
+      while (
+        year > input.startYear ||
+        (year === input.startYear && month >= input.startMonth)
+      ) {
+        const startOfMonth = new Date(year, month - 1, 1);
+        const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+
+        results.push({
+          month: startOfMonth.toLocaleString('default', { month: 'short' }),
+          year,
+          netWorth: runningBalance,
+        });
+
+        // Subtract this month's net change to get previous month's end balance
+        const monthTrans = transactionsInRange.filter(
+          t => t.transactionDate >= startOfMonth && t.transactionDate <= endOfMonth
+        );
+        
+        for (const t of monthTrans) {
+          if (t.type === 'income') runningBalance -= Number(t.amount);
+          if (t.type === 'expense') runningBalance += Number(t.amount);
+        }
+
+        month -= 1;
+        if (month < 1) {
+          month = 12;
+          year -= 1;
+        }
+      }
+
+      return results.reverse();
+    }),
+
+  getCashFlowSummaryByRange: publicProcedure
+    .input(
+      z.object({
+        userId: z.string().uuid(),
+        startYear: z.number(),
+        startMonth: z.number().min(1).max(12),
+        endYear: z.number(),
+        endMonth: z.number().min(1).max(12),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const startDate = new Date(input.startYear, input.startMonth - 1, 1);
+      const endDate = new Date(input.endYear, input.endMonth, 0, 23, 59, 59);
+
+      const [incomeGrouped, expenseGrouped] = await Promise.all([
+        ctx.db.transaction.groupBy({
+          by: ['categoryId'],
+          where: {
+            userId: input.userId,
+            type: 'income',
+            transactionDate: { gte: startDate, lte: endDate },
+            categoryId: { not: null },
+          },
+          _sum: { amount: true },
+        }),
+        ctx.db.transaction.groupBy({
+          by: ['categoryId'],
+          where: {
+            userId: input.userId,
+            type: 'expense',
+            transactionDate: { gte: startDate, lte: endDate },
+            categoryId: { not: null },
+          },
+          _sum: { amount: true },
+        }),
+      ]);
+
+      const allCategoryIds = [
+        ...incomeGrouped.map((d) => d.categoryId!),
+        ...expenseGrouped.map((d) => d.categoryId!),
+      ];
+
+      const categories = await ctx.db.category.findMany({
+        where: { id: { in: allCategoryIds } },
+      });
+
+      const incomeByCategory = incomeGrouped.map((d) => ({
+        category: categories.find((c) => c.id === d.categoryId)?.name ?? 'Unknown',
+        amount: Number(d._sum.amount ?? 0),
+      }));
+
+      const expenseByCategory = expenseGrouped.map((d) => ({
+        category: categories.find((c) => c.id === d.categoryId)?.name ?? 'Unknown',
+        amount: Number(d._sum.amount ?? 0),
+      }));
+
+      const totalIncome = incomeByCategory.reduce((sum, item) => sum + item.amount, 0);
+      const totalExpense = expenseByCategory.reduce((sum, item) => sum + item.amount, 0);
+
+      return {
+        incomeByCategory,
+        expenseByCategory,
+        totalIncome,
+        totalExpense,
+        netSavings: Math.max(0, totalIncome - totalExpense),
+      };
+    }),
+
   getAIInsights: publicProcedure
     .input(z.object({ userId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {

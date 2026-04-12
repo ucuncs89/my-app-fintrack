@@ -5,6 +5,8 @@ import { db } from "~/server/db";
 
 const baseUrl = env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
+// const baseUrl = "http://localhost:3000";
+
 export const auth = betterAuth({
   database: prismaAdapter(db, {
     provider: "postgresql",
