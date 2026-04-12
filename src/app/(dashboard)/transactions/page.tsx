@@ -13,13 +13,19 @@ export default async function TransactionsPage(): Promise<React.ReactElement> {
   let initialCategories: Awaited<ReturnType<typeof api.category.getAll>> = [];
 
   try {
-    [initialTransactionPage, initialTransfers, initialAccounts, initialCategories] =
+    const [txPage, transfers, accounts, categories] =
       await Promise.all([
         api.transaction.getAll({ userId, limit: 50 }),
         api.transfer.getAll({ userId, limit: 50 }),
         api.account.getAll({ userId }),
         api.category.getAll({ userId }),
       ]);
+
+    // Serialize to plain objects to avoid Decimal serialization issues between Server and Client Components
+    initialTransactionPage = JSON.parse(JSON.stringify(txPage));
+    initialTransfers = JSON.parse(JSON.stringify(transfers));
+    initialAccounts = JSON.parse(JSON.stringify(accounts));
+    initialCategories = JSON.parse(JSON.stringify(categories));
   } catch {
     // DB not available
   }

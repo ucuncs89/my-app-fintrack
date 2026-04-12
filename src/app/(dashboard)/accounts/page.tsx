@@ -8,10 +8,13 @@ export default async function AccountsPage(): Promise<React.ReactElement> {
   let totalBalance: Awaited<ReturnType<typeof api.account.getTotalBalance>> = 0;
 
   try {
-    [accounts, totalBalance] = await Promise.all([
+    const [accountsData, balanceData] = await Promise.all([
       api.account.getAll({ userId }),
       api.account.getTotalBalance({ userId }),
     ]);
+
+    accounts = JSON.parse(JSON.stringify(accountsData));
+    totalBalance = JSON.parse(JSON.stringify(balanceData));
   } catch {
     // DB not available
   }

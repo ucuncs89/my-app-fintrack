@@ -24,7 +24,7 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
   > = [];
 
   try {
-    [summary, recentTransactions, monthlyTrend, expenseByCategory, portfolio] =
+    const [summaryData, recentTx, trend, cat, port] =
       await Promise.all([
         api.dashboard.getSummary({ userId }),
         api.dashboard.getRecentTransactions({
@@ -35,6 +35,13 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
         api.dashboard.getExpenseByCategory({ userId }),
         api.assetTransaction.getPortfolioSummary({ userId }),
       ]);
+
+    // Serialize to plain objects to avoid Decimal serialization issues between Server and Client Components
+    summary = JSON.parse(JSON.stringify(summaryData));
+    recentTransactions = JSON.parse(JSON.stringify(recentTx));
+    monthlyTrend = JSON.parse(JSON.stringify(trend));
+    expenseByCategory = JSON.parse(JSON.stringify(cat));
+    portfolio = JSON.parse(JSON.stringify(port));
   } catch {
     // DB not available yet, show empty state
   }
