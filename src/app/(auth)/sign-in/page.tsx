@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "~/lib/auth-client";
 import { Button } from "~/components/ui/button";

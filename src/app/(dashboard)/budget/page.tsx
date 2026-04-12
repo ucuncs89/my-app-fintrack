@@ -9,7 +9,7 @@ export default async function BudgetPage(): Promise<React.ReactElement> {
   let categories: Awaited<ReturnType<typeof api.category.getAll>> = [];
 
   try {
-    [budgets, categories] = await Promise.all([
+    const [budgetsData, categoriesData] = await Promise.all([
       api.budget.getAll({
         userId,
         month: now.getMonth() + 1,
@@ -17,6 +17,9 @@ export default async function BudgetPage(): Promise<React.ReactElement> {
       }),
       api.category.getAll({ userId }),
     ]);
+
+    budgets = JSON.parse(JSON.stringify(budgetsData)) as typeof budgets;
+    categories = JSON.parse(JSON.stringify(categoriesData)) as typeof categories;
   } catch {
     // DB not available
   }

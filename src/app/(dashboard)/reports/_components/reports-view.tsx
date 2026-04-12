@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Area,
   AreaChart,
@@ -12,7 +12,11 @@ import {
   LineChart,
   Pie,
   PieChart,
+  ResponsiveContainer,
+  Sankey,
+  Tooltip,
   XAxis,
+  YAxis,
 } from 'recharts';
 
 import { formatCurrency } from '~/lib/format';
@@ -44,6 +48,7 @@ import {
   TableHeader,
   TableRow,
 } from '~/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { cn } from '~/lib/utils';
 import { api } from '~/trpc/react';
 
@@ -56,7 +61,7 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /* ─── chart configs ─────────────────────────────────────────────── */
 
@@ -70,6 +75,19 @@ const incomeConfig = {
 
 const netConfig = {
   net: { label: 'Net Savings', color: 'var(--chart-3)' },
+} satisfies ChartConfig;
+
+const budgetConfig = {
+  budgeted: { label: 'Budget', color: 'var(--muted-foreground)' },
+  actual: { label: 'Actual', color: 'var(--chart-1)' },
+} satisfies ChartConfig;
+
+const netWorthConfig = {
+  netWorth: { label: 'Net Worth', color: 'var(--chart-4)' },
+} satisfies ChartConfig;
+
+const savingsRateConfig = {
+  rate: { label: 'Savings Rate (%)', color: 'var(--chart-2)' },
 } satisfies ChartConfig;
 
 const CATEGORY_COLORS = [
@@ -132,14 +150,15 @@ export const ReportsView = ({ userId }: ReportsViewProps): React.ReactElement =>
 
   const queryInput = isRangeValid
     ? {
-        userId,
-        startYear: start.year,
-        startMonth: start.month,
-        endYear: end.year,
-        endMonth: end.month,
-      }
+      userId,
+      startYear: start.year,
+      startMonth: start.month,
+      endYear: end.year,
+      endMonth: end.month,
+    }
     : null;
 
+  // Existing Queries
   const { data: monthlyTrend = [], isFetching: trendFetching } =
     api.dashboard.getMonthlyTrendByRange.useQuery(
       queryInput ?? {
@@ -164,9 +183,104 @@ export const ReportsView = ({ userId }: ReportsViewProps): React.ReactElement =>
       { enabled: isRangeValid },
     );
 
-  const isFetching = trendFetching || catFetching;
+  // New Queries
+  const { data: budgetVsActual = [], isFetching: budgetFetching } =
+    api.dashboard.getBudgetVsActualByRange.useQuery(
+      queryInput ?? {
+        userId,
+        startYear: start.year,
+        startMonth: start.month,
+        endYear: start.year,
+        endMonth: start.month,
+      },
+      { enabled: isRangeValid },
+    );
 
-  /* derived data */
+  const { data: netWorthTrend = [], isFetching: nwFetching } =
+    api.dashboard.getNetWorthTrendByRange.useQuery(
+      queryInput ?? {
+        userId,
+        startYear: start.year,
+        startMonth: start.month,
+        endYear: start.year,
+        endMonth: start.month,
+      },
+      { enabled: isRangeValid },
+    );
+
+  const { data: cashFlow = null, isFetching: cfFetching } =
+    api.dashboard.getCashFlowSummaryByRange.useQuery(
+      queryInput ?? {
+        userId,
+        startYear: start.year,
+        startMonth: start.month,
+        endYear: start.year,
+        endMonth: start.month,
+      },
+      { enabled: isRangeValid },
+    );
+
+  const { data: accounts = [] } = api.account.getAll.useQuery({ userId });
+
+  const isFetching = trendFetching || catFetching || budgetFetching || nwFetching || cfFetching;
+
+  /* ─── Derived Data ─────────────────────────────────────────────── */
+  const savingsRateData = useMemo(() => {
+    return monthlyTrend.map((d) => {
+      const rate = d.income > 0 ? ((d.income - d.expense) / d.income) * 100 : 0;
+      return {
+        month: d.month,
+        year: d.year,
+        rate: Math.max(-100, Math.min(100, rate)), // Cap for display
+      };
+    });
+  }, [monthlyTrend]);
+
+  const allocationData = useMemo(() => {
+    const types: Record<string, number> = {};
+    accounts.forEach((a) => {
+      types[a.type] = (types[a.type] ?? 0) + Number(a.balance);
+    });
+    return Object.entries(types).map(([type, balance]) => ({
+      name: type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' '),
+      value: balance,
+    })).filter(d => d.value > 0);
+  }, [accounts]);
+
+  const sankeyData = useMemo(() => {
+    if (!cashFlow || (cashFlow.incomeByCategory.length === 0 && cashFlow.expenseByCategory.length === 0)) return null;
+    const nodes: { name: string }[] = [];
+    const links: { source: number; target: number; value: number }[] = [];
+
+    // Node 0: Total Income
+    nodes.push({ name: 'Total Income' });
+
+    // Nodes for Income Categories
+    cashFlow.incomeByCategory.forEach((inc) => {
+      nodes.push({ name: inc.category });
+      links.push({ source: nodes.length - 1, target: 0, value: Math.max(1, inc.amount) });
+    });
+
+    // Node: Total Expense
+    const expenseNodeIdx = nodes.length;
+    nodes.push({ name: 'Total Expense' });
+    links.push({ source: 0, target: expenseNodeIdx, value: Math.max(1, cashFlow.totalExpense) });
+
+    // Node: Savings
+    if (cashFlow.netSavings > 0) {
+      nodes.push({ name: 'Savings' });
+      links.push({ source: 0, target: nodes.length - 1, value: Math.max(1, cashFlow.netSavings) });
+    }
+
+    // Nodes for Expense Categories
+    cashFlow.expenseByCategory.forEach((exp) => {
+      nodes.push({ name: exp.category });
+      links.push({ source: expenseNodeIdx, target: nodes.length - 1, value: Math.max(1, exp.amount) });
+    });
+
+    return { nodes, links };
+  }, [cashFlow]);
+
   const netData = monthlyTrend.map((d) => ({
     month: d.month,
     year: d.year,
@@ -185,12 +299,11 @@ export const ReportsView = ({ userId }: ReportsViewProps): React.ReactElement =>
     return acc;
   }, {});
 
-  /* ─── Range filter UI ──────────────────────────────────────────── */
+  /* ─── Shared Components ────────────────────────────────────────── */
   const filterBar = (
     <Card>
       <CardContent className="flex flex-wrap items-center gap-3 pt-4">
         <span className="text-sm font-medium">Period:</span>
-
         <div className="flex items-center gap-2">
           <Select value={startKey} onValueChange={setStartKey}>
             <SelectTrigger id="reports-from" className="w-44">
@@ -204,9 +317,7 @@ export const ReportsView = ({ userId }: ReportsViewProps): React.ReactElement =>
               ))}
             </SelectContent>
           </Select>
-
           <span className="text-sm text-muted-foreground">to</span>
-
           <Select value={endKey} onValueChange={setEndKey}>
             <SelectTrigger id="reports-to" className="w-44">
               <SelectValue />
@@ -220,18 +331,16 @@ export const ReportsView = ({ userId }: ReportsViewProps): React.ReactElement =>
             </SelectContent>
           </Select>
         </div>
-
         {!isRangeValid && (
           <p className="text-sm text-destructive">Start must be before or equal to end.</p>
         )}
         {isFetching && (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground animate-pulse">Loading analysis...</p>
         )}
       </CardContent>
     </Card>
   );
 
-  /* ─── Summary row ──────────────────────────────────────────────── */
   const summaryRow = (
     <div className="grid gap-4 sm:grid-cols-3">
       {[
@@ -239,17 +348,12 @@ export const ReportsView = ({ userId }: ReportsViewProps): React.ReactElement =>
         { label: 'Total Expense', value: totalExpense, positive: false },
         { label: 'Net Savings', value: totalNet, positive: totalNet >= 0 },
       ].map(({ label, value, positive }) => (
-        <Card key={label}>
+        <Card key={label} className="overflow-hidden">
           <CardHeader className="pb-2">
             <CardDescription>{label}</CardDescription>
           </CardHeader>
           <CardContent>
-            <p
-              className={cn(
-                'text-2xl font-bold',
-                positive ? 'text-green-600 dark:text-green-400' : 'text-red-500',
-              )}
-            >
+            <p className={cn('text-2xl font-bold', positive ? 'text-green-600 dark:text-green-400' : 'text-red-500')}>
               {formatCurrency(value)}
             </p>
           </CardContent>
@@ -258,206 +362,291 @@ export const ReportsView = ({ userId }: ReportsViewProps): React.ReactElement =>
     </div>
   );
 
-  /* ─── Income vs Expense table ──────────────────────────────────── */
-  const incomeExpenseTable = (
-    <Card className="sm:col-span-2">
-      <CardHeader>
-        <CardTitle>Income vs Expense — Monthly</CardTitle>
-        <CardDescription>Summary per month for the selected period</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {monthlyTrend.length === 0 ? (
-          renderEmpty('No data for selected period')
-        ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Month</TableHead>
-                  <TableHead className="text-right text-green-600 dark:text-green-400">Income</TableHead>
-                  <TableHead className="text-right text-red-500">Expense</TableHead>
-                  <TableHead className="text-right">Net</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {monthlyTrend.map((row) => {
-                  const net = row.income - row.expense;
-                  return (
-                    <TableRow key={`${row.year}-${row.month}`}>
-                      <TableCell className="font-medium">
-                        {MONTH_SHORT.find((_, i) => MONTH_SHORT[i] === row.month) ?? row.month}{' '}
-                        {row.year}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-green-600 dark:text-green-400">
-                        {formatCurrency(row.income)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-red-500">
-                        {formatCurrency(row.expense)}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          'text-right font-mono font-semibold',
-                          net >= 0
-                            ? 'text-green-600 dark:text-green-400'
-                            : 'text-red-500',
-                        )}
-                      >
-                        {net >= 0 ? '+' : ''}
-                        {formatCurrency(net)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-
+  /* ─── MAIN RENDER ──────────────────────────────────────────────── */
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {filterBar}
       {isRangeValid && summaryRow}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {/* Monthly Expense Bar */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Monthly Expense</CardTitle>
-            <CardDescription>Expense trend over the selected period</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {monthlyTrend.length === 0
-              ? renderEmpty('No data yet')
-              : (
-                <ChartContainer config={expenseConfig} className="min-h-[200px] w-full">
-                  <BarChart accessibilityLayer data={monthlyTrend}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey="month"
-                      tickLine={false}
-                      tickMargin={10}
-                      axisLine={false}
-                    />
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="budget">Budget</TabsTrigger>
+          <TabsTrigger value="wealth">Wealth & Allocation</TabsTrigger>
+          <TabsTrigger value="cashflow">Cash Flow</TabsTrigger>
+        </TabsList>
+
+        {/* ── OVERVIEW TAB ────────────────────────────────────────── */}
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Monthly Expense</CardTitle>
+                <CardDescription>Expense trend over selection</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {monthlyTrend.length === 0 ? renderEmpty('No data yet') : (
+                  <ChartContainer config={expenseConfig} className="min-h-[220px] w-full">
+                    <BarChart accessibilityLayer data={monthlyTrend}>
+                      <CartesianGrid vertical={false} />
+                      <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="expense" fill="var(--color-expense)" radius={4} />
+                    </BarChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Expense by Category</CardTitle>
+                <CardDescription>Breakdown for the selected period</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {expenseByCategory.length === 0 ? renderEmpty('No expenses yet') : (
+                  <ChartContainer config={categoryConfig} className="mx-auto min-h-[220px] w-full">
+                    <PieChart>
+                      <ChartTooltip content={<ChartTooltipContent nameKey="category" />} />
+                      <Pie
+                        data={expenseByCategory}
+                        dataKey="amount"
+                        nameKey="category"
+                        cx="50%" cy="50%" outerRadius={70}
+                        label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {expenseByCategory.map((item, i) => (
+                          <Cell key={item.category} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Income Trend</CardTitle>
+                <CardDescription>Monthly income over selection</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {monthlyTrend.length === 0 ? renderEmpty('No data yet') : (
+                  <ChartContainer config={incomeConfig} className="min-h-[220px] w-full">
+                    <LineChart accessibilityLayer data={monthlyTrend}>
+                      <CartesianGrid vertical={false} />
+                      <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Line type="monotone" dataKey="income" stroke="var(--color-income)" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Net Savings</CardTitle>
+                <CardDescription>Income minus expense per month</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {netData.length === 0 ? renderEmpty('No data yet') : (
+                  <ChartContainer config={netConfig} className="min-h-[220px] w-full">
+                    <AreaChart accessibilityLayer data={netData}>
+                      <CartesianGrid vertical={false} />
+                      <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Area type="monotone" dataKey="net" stroke="var(--color-net)" fill="var(--color-net)" fillOpacity={0.2} />
+                    </AreaChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="sm:col-span-2">
+              <CardHeader>
+                <CardTitle>Monthly Summary Table</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Month</TableHead>
+                        <TableHead className="text-right text-green-600">Income</TableHead>
+                        <TableHead className="text-right text-red-500">Expense</TableHead>
+                        <TableHead className="text-right">Net</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {monthlyTrend.map((row) => (
+                        <TableRow key={`${row.year}-${row.month}`}>
+                          <TableCell className="font-medium">{row.month} {row.year}</TableCell>
+                          <TableCell className="text-right text-green-600">{formatCurrency(row.income)}</TableCell>
+                          <TableCell className="text-right text-red-500">{formatCurrency(row.expense)}</TableCell>
+                          <TableCell className={cn('text-right font-semibold', row.income - row.expense >= 0 ? 'text-green-600' : 'text-red-500')}>
+                            {formatCurrency(row.income - row.expense)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ── BUDGET TAB ──────────────────────────────────────────── */}
+        <TabsContent value="budget" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Budget vs Actual Spending</CardTitle>
+              <CardDescription>Comparison of budgeted amounts vs real expenses per category</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {budgetVsActual.length === 0 ? renderEmpty('No budgets found for this period') : (
+                <ChartContainer config={budgetConfig} className="min-h-[400px] w-full">
+                  <BarChart data={budgetVsActual} layout="vertical" margin={{ left: 40 }}>
+                    <CartesianGrid horizontal={false} />
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="category" type="category" tickLine={false} axisLine={false} width={100} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="expense" fill="var(--color-expense)" radius={4} />
+                    <Bar dataKey="budgeted" fill="var(--color-budgeted)" radius={[0, 4, 4, 0]} barSize={20} />
+                    <Bar dataKey="actual" fill="var(--color-actual)" radius={[0, 4, 4, 0]} barSize={20} />
                   </BarChart>
                 </ChartContainer>
               )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {/* Expense by Category Pie */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Expense by Category</CardTitle>
-            <CardDescription>Breakdown for the selected period</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {expenseByCategory.length === 0
-              ? renderEmpty('No expenses yet')
-              : (
-                <ChartContainer
-                  config={categoryConfig}
-                  className="mx-auto min-h-[200px] w-full"
-                >
-                  <PieChart>
-                    <ChartTooltip content={<ChartTooltipContent nameKey="category" />} />
-                    <Pie
-                      data={expenseByCategory}
-                      dataKey="amount"
-                      nameKey="category"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={70}
-                      label={({ category, percent }: { category: string; percent: number }) =>
-                        `${category} ${(percent * 100).toFixed(0)}%`
-                      }
-                      labelLine={false}
+        {/* ── WEALTH TAB ──────────────────────────────────────────── */}
+        <TabsContent value="wealth" className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card className="sm:col-span-2">
+              <CardHeader>
+                <CardTitle>Net Worth Trend</CardTitle>
+                <CardDescription>Historical total balance across all accounts</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {netWorthTrend.length === 0 ? renderEmpty('Calculating...') : (
+                  <ChartContainer config={netWorthConfig} className="min-h-[300px] w-full">
+                    <AreaChart data={netWorthTrend}>
+                      <defs>
+                        <linearGradient id="colorNW" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--color-netWorth)" stopOpacity={0.8} />
+                          <stop offset="95%" stopColor="var(--color-netWorth)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid vertical={false} />
+                      <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                      <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `Rp${(v / 1000000).toFixed(0)}M`} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Area type="monotone" dataKey="netWorth" stroke="var(--color-netWorth)" fillOpacity={1} fill="url(#colorNW)" />
+                    </AreaChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Savings Rate</CardTitle>
+                <CardDescription>Percentage of income saved monthly (Target: 20%+)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {savingsRateData.length === 0 ? renderEmpty('No income data') : (
+                  <ChartContainer config={savingsRateConfig} className="min-h-[220px] w-full">
+                    <LineChart data={savingsRateData}>
+                      <CartesianGrid vertical={false} />
+                      <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                      <YAxis unit="%" tickLine={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Line type="stepAfter" dataKey="rate" stroke="var(--color-rate)" strokeWidth={3} dot={{ r: 4 }} />
+                    </LineChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Allocation</CardTitle>
+                <CardDescription>Current balance distribution by account type</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {allocationData.length === 0 ? renderEmpty('No accounts found') : (
+                  <ChartContainer config={{}} className="mx-auto min-h-[220px] w-full">
+                    <PieChart>
+                      <Pie
+                        data={allocationData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                      >
+                        {allocationData.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    </PieChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ── CASH FLOW TAB ───────────────────────────────────────── */}
+        <TabsContent value="cashflow" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Cash Flow Summary</CardTitle>
+              <CardDescription>Visualizing how your money flows from income to expenses and savings</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!sankeyData ? renderEmpty('Data unavailable') : (
+                <div className="h-[450px] w-full overflow-x-auto">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <Sankey
+                      data={sankeyData}
+                      node={{ fill: 'var(--primary)', stroke: 'var(--primary-foreground)' }}
+                      link={{ stroke: 'var(--muted)', fillOpacity: 0.2 }}
+                      margin={{ top: 20, bottom: 20, left: 10, right: 10 }}
                     >
-                      {expenseByCategory.map((item, i) => (
-                        <Cell
-                          key={item.category}
-                          fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ChartContainer>
+                      <Tooltip />
+                    </Sankey>
+                  </ResponsiveContainer>
+                </div>
               )}
-          </CardContent>
-        </Card>
-
-        {/* Income Trend Line */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Income Trend</CardTitle>
-            <CardDescription>Monthly income over the selected period</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {monthlyTrend.length === 0
-              ? renderEmpty('No data yet')
-              : (
-                <ChartContainer config={incomeConfig} className="min-h-[200px] w-full">
-                  <LineChart accessibilityLayer data={monthlyTrend}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey="month"
-                      tickLine={false}
-                      tickMargin={10}
-                      axisLine={false}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Line
-                      type="monotone"
-                      dataKey="income"
-                      stroke="var(--color-income)"
-                      strokeWidth={2}
-                    />
-                  </LineChart>
-                </ChartContainer>
-              )}
-          </CardContent>
-        </Card>
-
-        {/* Net Savings Area */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Net Savings</CardTitle>
-            <CardDescription>Income minus expense per month</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {netData.length === 0
-              ? renderEmpty('No data yet')
-              : (
-                <ChartContainer config={netConfig} className="min-h-[200px] w-full">
-                  <AreaChart accessibilityLayer data={netData}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey="month"
-                      tickLine={false}
-                      tickMargin={10}
-                      axisLine={false}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Area
-                      type="monotone"
-                      dataKey="net"
-                      stroke="var(--color-net)"
-                      fill="var(--color-net)"
-                      fillOpacity={0.2}
-                    />
-                  </AreaChart>
-                </ChartContainer>
-              )}
-          </CardContent>
-        </Card>
-
-        {/* Income vs Expense Table — full width */}
-        {incomeExpenseTable}
-      </div>
+              <div className="mt-6 grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
+                <div className="flex flex-col gap-1 border-l-4 border-green-500 pl-3">
+                  <span className="text-muted-foreground">Total Income</span>
+                  <span className="text-lg font-bold">{formatCurrency(cashFlow?.totalIncome ?? 0)}</span>
+                </div>
+                <div className="flex flex-col gap-1 border-l-4 border-red-500 pl-3">
+                  <span className="text-muted-foreground">Total Expenses</span>
+                  <span className="text-lg font-bold">{formatCurrency(cashFlow?.totalExpense ?? 0)}</span>
+                </div>
+                <div className="flex flex-col gap-1 border-l-4 border-blue-500 pl-3">
+                  <span className="text-muted-foreground">Flow Efficiency</span>
+                  <span className="text-lg font-bold">
+                    {cashFlow?.totalIncome ? ((cashFlow.totalIncome - cashFlow.totalExpense) / cashFlow.totalIncome * 100).toFixed(1) : 0}%
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 border-l-4 border-primary pl-3">
+                  <span className="text-muted-foreground">Potential Savings</span>
+                  <span className="text-lg font-bold">{formatCurrency(cashFlow?.netSavings ?? 0)}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
