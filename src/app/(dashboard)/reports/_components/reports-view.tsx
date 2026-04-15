@@ -33,6 +33,8 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '~/components/ui/chart';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -86,6 +88,10 @@ const netWorthConfig = {
   netWorth: { label: 'Net Worth', color: 'var(--chart-4)' },
 } satisfies ChartConfig;
 
+const balanceTimelineConfig = {
+  balance: { label: 'Total balance', color: 'var(--chart-4)' },
+} satisfies ChartConfig;
+
 const savingsRateConfig = {
   rate: { label: 'Savings Rate (%)', color: 'var(--chart-2)' },
 } satisfies ChartConfig;
@@ -121,6 +127,32 @@ function toKey(year: number, month: number) {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
 
+function toDateInputValue(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function parseDateInput(s: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!match) {
+    return null;
+  }
+  const y = Number(match[1]);
+  const mo = Number(match[2]);
+  const d = Number(match[3]);
+  const dt = new Date(y, mo - 1, d);
+  if (
+    dt.getFullYear() !== y ||
+    dt.getMonth() !== mo - 1 ||
+    dt.getDate() !== d
+  ) {
+    return null;
+  }
+  return dt;
+}
+
 /* ─── Component ─────────────────────────────────────────────────── */
 
 export const ReportsView = ({ userId }: ReportsViewProps): React.ReactElement => {
@@ -134,6 +166,13 @@ export const ReportsView = ({ userId }: ReportsViewProps): React.ReactElement =>
 
   const [startKey, setStartKey] = useState(toKey(defaultStart.year, defaultStart.month));
   const [endKey, setEndKey] = useState(toKey(defaultEnd.year, defaultEnd.month));
+
+  const [timelineStart, setTimelineStart] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return toDateInputValue(d);
+  });
+  const [timelineEnd, setTimelineEnd] = useState(() => toDateInputValue(new Date()));
 
   const parseKey = (key: string) => {
     const [y, m] = key.split('-').map(Number) as [number, number];
@@ -220,6 +259,28 @@ export const ReportsView = ({ userId }: ReportsViewProps): React.ReactElement =>
       { enabled: isRangeValid },
     );
 
+  const tlStart = parseDateInput(timelineStart);
+  const tlEnd = parseDateInput(timelineEnd);
+  const isTimelineRangeValid =
+    tlStart != null && tlEnd != null && tlStart.getTime() <= tlEnd.getTime();
+  const isTimelineWithinMax =
+    tlStart != null &&
+    tlEnd != null &&
+    tlEnd.getTime() - tlStart.getTime() <= 731 * 24 * 60 * 60 * 1000;
+
+  const { data: balanceTimeline, isFetching: tlFetching, error: tlError } =
+    api.dashboard.getBalanceTimeline.useQuery(
+      {
+        userId,
+        startDate: tlStart ?? new Date(0),
+        endDate: tlEnd ?? new Date(0),
+      },
+      {
+        enabled:
+          Boolean(isTimelineRangeValid && isTimelineWithinMax && tlStart && tlEnd),
+      },
+    );
+
   const { data: accounts = [] } = api.account.getAll.useQuery({ userId });
 
   const isFetching = trendFetching || catFetching || budgetFetching || nwFetching || cfFetching;
@@ -299,6 +360,16 @@ export const ReportsView = ({ userId }: ReportsViewProps): React.ReactElement =>
     return acc;
   }, {});
 
+  const balanceTimelineChartData = useMemo(() => {
+    if (!balanceTimeline?.points.length) {
+      return [];
+    }
+    return balanceTimeline.points.map((p) => ({
+      t: new Date(p.at).getTime(),
+      balance: p.balance,
+    }));
+  }, [balanceTimeline]);
+
   /* ─── Shared Components ────────────────────────────────────────── */
   const filterBar = (
     <Card>
@@ -369,10 +440,11 @@ export const ReportsView = ({ userId }: ReportsViewProps): React.ReactElement =>
       {isRangeValid && summaryRow}
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex flex-wrap gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="budget">Budget</TabsTrigger>
           <TabsTrigger value="wealth">Wealth & Allocation</TabsTrigger>
+          <TabsTrigger value="balance">Balance timeline</TabsTrigger>
           <TabsTrigger value="cashflow">Cash Flow</TabsTrigger>
         </TabsList>
 
@@ -599,6 +671,134 @@ export const ReportsView = ({ userId }: ReportsViewProps): React.ReactElement =>
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* ── BALANCE TIMELINE TAB ────────────────────────────────── */}
+        <TabsContent value="balance" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Total balance over time</CardTitle>
+              <CardDescription>
+                Combined cash balance across all accounts after each change (transactions and
+                asset trades). Transfers between your own accounts do not change this total.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="timeline-from">From</Label>
+                  <Input
+                    id="timeline-from"
+                    type="date"
+                    value={timelineStart}
+                    onChange={(e) => {
+                      setTimelineStart(e.target.value);
+                    }}
+                    className="w-[11rem]"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="timeline-to">To</Label>
+                  <Input
+                    id="timeline-to"
+                    type="date"
+                    value={timelineEnd}
+                    onChange={(e) => {
+                      setTimelineEnd(e.target.value);
+                    }}
+                    className="w-[11rem]"
+                  />
+                </div>
+                {tlFetching && (
+                  <p className="text-sm text-muted-foreground animate-pulse pb-2">
+                    Loading timeline…
+                  </p>
+                )}
+              </div>
+              {!isTimelineRangeValid && (
+                <p className="text-sm text-destructive">
+                  Start date must be on or before end date.
+                </p>
+              )}
+              {isTimelineRangeValid && !isTimelineWithinMax && (
+                <p className="text-sm text-destructive">
+                  Date range must be at most 2 years.
+                </p>
+              )}
+              {tlError != null && (
+                <p className="text-sm text-destructive">
+                  {tlError.message}
+                </p>
+              )}
+              {isTimelineRangeValid && isTimelineWithinMax && !tlFetching && balanceTimelineChartData.length === 0 && (
+                renderEmpty('No timeline data for this range')
+              )}
+              {isTimelineRangeValid && isTimelineWithinMax && balanceTimelineChartData.length > 0 && (
+                <ChartContainer config={balanceTimelineConfig} className="min-h-[320px] w-full">
+                  <AreaChart data={balanceTimelineChartData} accessibilityLayer>
+                    <defs>
+                      <linearGradient id="balanceTimelineFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--color-balance)" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="var(--color-balance)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="t"
+                      type="number"
+                      domain={['dataMin', 'dataMax']}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(ts: number) =>
+                        new Date(ts).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      }
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v: number) =>
+                        formatCurrency(v).replace(/\s/g, ' ')
+                      }
+                      width={72}
+                    />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.[0]) {
+                          return null;
+                        }
+                        const row = payload[0].payload as {
+                          t: number;
+                          balance: number;
+                        };
+                        return (
+                          <div className="rounded-md border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
+                            <p className="font-medium">
+                              {new Date(row.t).toLocaleString()}
+                            </p>
+                            <p className="text-muted-foreground">
+                              {formatCurrency(row.balance)}
+                            </p>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Area
+                      type="stepAfter"
+                      dataKey="balance"
+                      stroke="var(--color-balance)"
+                      strokeWidth={2}
+                      fill="url(#balanceTimelineFill)"
+                    />
+                  </AreaChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ── CASH FLOW TAB ───────────────────────────────────────── */}
