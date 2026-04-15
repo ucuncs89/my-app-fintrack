@@ -457,6 +457,131 @@ export const dashboardRouter = createTRPCRouter({
       return results.reverse();
     }),
 
+  getBalanceTimeline: publicProcedure
+    .input(
+      z
+        .object({
+          userId: z.string().uuid(),
+          startDate: z.coerce.date(),
+          endDate: z.coerce.date(),
+        })
+        .refine((d) => d.startDate.getTime() <= d.endDate.getTime(), {
+          message: 'startDate must be before or equal to endDate',
+        })
+        .refine(
+          (d) =>
+            d.endDate.getTime() - d.startDate.getTime() <=
+            731 * 24 * 60 * 60 * 1000,
+          { message: 'Date range must be at most 2 years' },
+        ),
+    )
+    .query(async ({ ctx, input }) => {
+      const windowStart = new Date(
+        input.startDate.getFullYear(),
+        input.startDate.getMonth(),
+        input.startDate.getDate(),
+        0,
+        0,
+        0,
+        0,
+      );
+      const windowEnd = new Date(
+        input.endDate.getFullYear(),
+        input.endDate.getMonth(),
+        input.endDate.getDate(),
+        23,
+        59,
+        59,
+        999,
+      );
+
+      const [totalAgg, transactions, assetTxs] = await Promise.all([
+        ctx.db.account.aggregate({
+          where: { userId: input.userId },
+          _sum: { balance: true },
+        }),
+        ctx.db.transaction.findMany({
+          where: {
+            userId: input.userId,
+            transactionDate: { gte: windowStart },
+          },
+          select: {
+            id: true,
+            transactionDate: true,
+            type: true,
+            amount: true,
+          },
+        }),
+        ctx.db.assetTransaction.findMany({
+          where: {
+            userId: input.userId,
+            transactionDate: { gte: windowStart },
+          },
+          select: {
+            id: true,
+            transactionDate: true,
+            type: true,
+            total: true,
+          },
+        }),
+      ]);
+
+      let balance = Number(totalAgg._sum.balance ?? 0);
+
+      type Unified = {
+        id: string;
+        kind: 'tx' | 'asset';
+        at: Date;
+        delta: number;
+      };
+
+      const unified: Unified[] = [
+        ...transactions.map((t) => ({
+          id: t.id,
+          kind: 'tx' as const,
+          at: t.transactionDate,
+          delta:
+            t.type === 'income' ? Number(t.amount) : -Number(t.amount),
+        })),
+        ...assetTxs.map((a) => ({
+          id: a.id,
+          kind: 'asset' as const,
+          at: a.transactionDate,
+          delta:
+            a.type === 'buy' ? -Number(a.total) : Number(a.total),
+        })),
+      ];
+
+      const compareAsc = (a: Unified, b: Unified): number => {
+        const t = a.at.getTime() - b.at.getTime();
+        if (t !== 0) {
+          return t;
+        }
+        return a.id.localeCompare(b.id);
+      };
+
+      for (const ev of unified.sort((a, b) => -compareAsc(a, b))) {
+        if (ev.at >= windowStart) {
+          balance -= ev.delta;
+        }
+      }
+
+      const inRange = unified
+        .filter((ev) => ev.at >= windowStart && ev.at <= windowEnd)
+        .sort(compareAsc);
+
+      const points: { at: string; balance: number }[] = [
+        { at: windowStart.toISOString(), balance },
+      ];
+
+      for (const ev of inRange) {
+        balance += ev.delta;
+        points.push({ at: ev.at.toISOString(), balance });
+      }
+
+      return { points };
+    }),
+
   getCashFlowSummaryByRange: publicProcedure
     .input(
       z.object({
