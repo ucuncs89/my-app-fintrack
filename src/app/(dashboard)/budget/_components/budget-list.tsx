@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { cn } from '~/lib/utils';
-import { formatCurrency } from '~/lib/format';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -46,6 +45,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { EmptyState } from '~/components/ui/empty-state';
+import { FinancialDisplay } from '~/components/ui/financial-display';
 import { api, type RouterOutputs } from '~/trpc/react';
 
 type BudgetItem = RouterOutputs['budget']['getAll'][number];
@@ -211,11 +212,14 @@ export const BudgetList = ({
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-2">
           {budgets.length === 0 ? (
-            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-              No budgets for {MONTH_NAMES[viewMonth - 1]} {viewYear}. Click &ldquo;Add budget&rdquo; to start.
-            </div>
+            <EmptyState
+              icon={Plus}
+              title="No budgets set"
+              description={`You have no budgets for ${MONTH_NAMES[viewMonth - 1]} ${viewYear}. Set a limit for your expenses.`}
+              className="min-h-[250px] border-none"
+            />
           ) : (
             <div className="space-y-6">
               {budgets.map((budget) => {
@@ -240,15 +244,18 @@ export const BudgetList = ({
                           <Badge variant="outline" className="shrink-0">Almost full</Badge>
                         )}
                       </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <p className="text-xs font-medium text-muted-foreground">
-                          {formatCurrency(budget.used)} / {formatCurrency(budgetAmount)}
-                        </p>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <div className="text-right">
+                          <FinancialDisplay amount={budget.used} showSign={false} className="text-xs font-semibold" />
+                          <span className="text-xs text-muted-foreground mx-1">/</span>
+                          <FinancialDisplay amount={budgetAmount} showSign={false} className="text-xs text-muted-foreground" />
+                        </div>
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon-sm"
                           aria-label="Edit budget"
+                          className="opacity-50 hover:opacity-100"
                           onClick={() => {
                             setEditTarget(budget);
                             setEditForm({ amount: String(budgetAmount) });
@@ -261,6 +268,7 @@ export const BudgetList = ({
                           variant="ghost"
                           size="icon-sm"
                           aria-label="Delete budget"
+                          className="opacity-50 hover:opacity-100 hover:text-destructive"
                           onClick={() => setDeleteTarget(budget)}
                         >
                           <Trash2 className="size-3 text-destructive" />
@@ -270,19 +278,19 @@ export const BudgetList = ({
                     <Progress
                       value={percentage}
                       className={cn(
-                        'h-2',
+                        'h-2.5 rounded-full overflow-hidden border border-white/5',
                         isOverBudget
                           ? '[&>[data-slot=progress-indicator]]:bg-destructive'
                           : percentage > 80
                             ? '[&>[data-slot=progress-indicator]]:bg-amber-500'
-                            : '[&>[data-slot=progress-indicator]]:bg-green-500',
+                            : '[&>[data-slot=progress-indicator]]:bg-emerald-500',
                       )}
                     />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Used: {formatCurrency(budget.used)}</span>
+                    <div className="flex justify-between text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                      <span>Used: <FinancialDisplay amount={budget.used} showSign={false} className="text-muted-foreground ml-1" /></span>
                       <span className={cn(isOverBudget && 'text-destructive')}>
-                        {isOverBudget ? 'Over: ' : 'Left: '}
-                        {formatCurrency(Math.abs(budget.remaining))}
+                        {isOverBudget ? 'Over by ' : 'Remaining: '}
+                        <FinancialDisplay amount={Math.abs(budget.remaining)} showSign={false} className={cn(isOverBudget && 'text-destructive')} />
                       </span>
                     </div>
                   </div>
