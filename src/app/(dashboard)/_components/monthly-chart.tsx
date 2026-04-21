@@ -1,6 +1,7 @@
 'use client';
 
 import { Bar, BarChart, CartesianGrid, XAxis } from 'recharts';
+import { BarChart as BarChartIcon } from 'lucide-react';
 
 import {
   Card,
@@ -17,6 +18,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '~/components/ui/chart';
+import { EmptyState } from '~/components/ui/empty-state';
 
 type MonthlyData = {
   month: string;
@@ -44,16 +46,19 @@ export const MonthlyChart = ({
   data,
 }: MonthlyChartProps): React.ReactElement => {
   return (
-    <Card className="lg:col-span-4">
+    <Card className="lg:col-span-4 glass border-white/5 shadow-sm">
       <CardHeader>
         <CardTitle>Income vs Expense</CardTitle>
         <CardDescription>Monthly comparison</CardDescription>
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
-          <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
-            No data yet
-          </div>
+          <EmptyState
+            icon={BarChartIcon}
+            title="No data yet"
+            description="Record transactions to see your monthly comparison"
+            className="min-h-[250px] border-none"
+          />
         ) : (
           <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
             <BarChart accessibilityLayer data={data}>

@@ -1,6 +1,7 @@
 'use client';
 
 import { Cell, Pie, PieChart } from 'recharts';
+import { PieChart as PieChartIcon } from 'lucide-react';
 
 import {
   Card,
@@ -15,6 +16,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '~/components/ui/chart';
+import { EmptyState } from '~/components/ui/empty-state';
 
 type CategoryData = {
   category: string;
@@ -45,16 +47,19 @@ export const ExpenseCategoryChart = ({
   }, {});
 
   return (
-    <Card className="lg:col-span-3">
+    <Card className="lg:col-span-3 glass border-white/5 shadow-sm">
       <CardHeader>
         <CardTitle>Expense by Category</CardTitle>
         <CardDescription>This month breakdown</CardDescription>
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
-          <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
-            No expenses yet
-          </div>
+          <EmptyState
+            icon={PieChartIcon}
+            title="No expenses yet"
+            description="Record your expenses to see category breakdown"
+            className="min-h-[250px] border-none"
+          />
         ) : (
           <ChartContainer
             config={chartConfig}

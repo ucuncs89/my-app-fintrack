@@ -51,8 +51,10 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { cn } from "~/lib/utils";
-import { formatCurrency, formatDate } from "~/lib/format";
+import { formatDate } from "~/lib/format";
 import { api, type RouterOutputs } from "~/trpc/react";
+import { FinancialDisplay } from "~/components/ui/financial-display";
+import { EmptyState } from "~/components/ui/empty-state";
 
 const FILTER_ALL = "__all__";
 const CATEGORY_NONE = "__none__";
@@ -183,10 +185,13 @@ function TransactionCard({
 
       {/* Right — amount + actions */}
       <div className="ml-auto flex shrink-0 flex-col items-end gap-2">
-        <span className={cn("text-sm font-bold", config.amountColor)}>
-          {config.sign}{formatCurrency(Number(tx.amount))}
-        </span>
-        <div className="flex gap-1">
+        <FinancialDisplay
+          amount={tx.amount}
+          type={tx.type === 'transfer' ? 'neutral' : tx.type === 'investment' ? 'expense' : tx.type}
+          showSign={tx.type !== 'transfer'}
+          className={cn("text-sm", config.amountColor)}
+        />
+        <div className="flex gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
           <button
             type="button"
             aria-label="Edit transaction"
@@ -598,22 +603,17 @@ export const TransactionsManager = ({
 
       {/* ── Transaction list ── */}
       {transactions.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/60 py-16 text-center">
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-muted">
-            <ArrowLeftRight className="size-6 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="text-sm font-medium">No transactions found</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {activeFilterCount > 0 ? "Try adjusting your filters" : "Add your first transaction"}
-            </p>
-          </div>
-          {activeFilterCount === 0 && (
-            <Button type="button" size="sm" onClick={openCreate} className="gap-1.5">
-              <Plus className="size-4" /> Add transaction
-            </Button>
-          )}
-        </div>
+        <EmptyState
+            icon={ArrowLeftRight}
+            title="No transactions found"
+            description={activeFilterCount > 0 ? "Try adjusting your filters" : "Add your first transaction to start tracking"}
+            className="border-none"
+            action={activeFilterCount === 0 ? (
+              <Button type="button" onClick={openCreate} className="gap-1.5 shadow-md">
+                <Plus className="size-4" /> Add transaction
+              </Button>
+            ) : undefined}
+        />
       ) : (
         <div className="space-y-2">
           {transactions.map((tx) => (

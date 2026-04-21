@@ -13,7 +13,9 @@ import {
 } from "lucide-react";
 
 import { AccountType } from "../../../../../generated/prisma";
-import { formatCurrency } from "~/lib/format";
+import { StatCard } from "~/components/ui/stat-card";
+import { EmptyState } from "~/components/ui/empty-state";
+import { FinancialDisplay } from "~/components/ui/financial-display";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -186,34 +188,32 @@ export const AccountList = ({
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2 mb-6">
         <Button type="button" onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" />
+          <Plus className="size-4 mr-2" />
           Add account
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Total Balance</CardTitle>
-          <CardDescription>Across all accounts</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold">
-            {formatCurrency(Number(totalBalance))}
-          </p>
-        </CardContent>
-      </Card>
+      <div className="mb-6 sm:w-1/2 lg:w-1/3">
+        <StatCard
+          title="Total Balance"
+          amount={Number(totalBalance)}
+          icon={<Wallet className="size-4" />}
+          className="shadow-sm"
+        />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {accounts.length === 0 ? (
-          <Card className="sm:col-span-2 lg:col-span-3">
-            <CardContent className="flex h-48 items-center justify-center">
-              <p className="text-muted-foreground text-sm">
-                No accounts yet. Add your first account to start tracking.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <EmptyState
+              icon={Wallet}
+              title="No accounts yet"
+              description="Add your first bank account, wallet, or savings to start tracking."
+              className="bg-card shadow-sm"
+            />
+          </div>
         ) : (
           accounts.map((account) => {
             const config =
@@ -222,46 +222,49 @@ export const AccountList = ({
             const Icon = config.icon;
 
             return (
-              <Card key={account.id}>
-                <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
-                  <div className="min-w-0 flex-1">
-                    <CardTitle className="text-base">{account.name}</CardTitle>
-                    <CardDescription>
-                      <Badge variant="outline" className="mt-1">
-                        <Icon className="size-3" />
-                        {config.label}
-                      </Badge>
-                    </CardDescription>
-                  </div>
-                  <div className="flex shrink-0 gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Edit account"
-                      onClick={() => openEdit(account)}
-                    >
-                      <Pencil className="size-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Delete account"
-                      onClick={() => setDeleteTarget(account)}
-                    >
-                      <Trash2 className="text-destructive size-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">
-                    {formatCurrency(Number(account.balance))}
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {account.currency}
-                  </p>
-                </CardContent>
+              <Card key={account.id} className="glass card-hover border-transparent/5 shadow-sm transition-all overflow-hidden relative group">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-duration-500" />
+                <div className="relative z-10">
+                  <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base font-semibold">{account.name}</CardTitle>
+                      <CardDescription className="flex items-center mt-1.5">
+                        <Badge variant="secondary" className="font-normal text-[10px] px-2 py-0 uppercase tracking-widest text-muted-foreground bg-muted/50">
+                          <Icon className="size-3 mr-1" />
+                          {config.label}
+                        </Badge>
+                      </CardDescription>
+                    </div>
+                    <div className="flex shrink-0 gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Edit account"
+                        onClick={() => openEdit(account)}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Delete account"
+                        onClick={() => setDeleteTarget(account)}
+                      >
+                        <Trash2 className="text-destructive size-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-2">
+                    <FinancialDisplay
+                        amount={Number(account.balance)}
+                        currency={account.currency}
+                        showSign={false}
+                        className="text-2xl font-bold"
+                    />
+                  </CardContent>
+                </div>
               </Card>
             );
           })

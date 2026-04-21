@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, FileText } from "lucide-react";
 
 import { cn } from "~/lib/utils";
 import {
@@ -11,6 +11,8 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
+import { FinancialDisplay } from "~/components/ui/financial-display";
+import { EmptyState } from "~/components/ui/empty-state";
 
 type TransactionItem = {
   id: string;
@@ -27,47 +29,38 @@ type RecentTransactionsProps = {
   transactions: TransactionItem[];
 };
 
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-};
-
 type TxVisualConfig = {
   icon: React.ComponentType<{ className?: string }>;
   color: string;
-  sign: string;
+  type: "income" | "expense" | "neutral";
   badge: "default" | "secondary" | "destructive" | "outline";
 };
 
 const defaultTxConfig: TxVisualConfig = {
   icon: ArrowUpRight,
-  color: "text-red-600",
-  sign: "-",
+  color: "text-destructive",
+  type: "expense",
   badge: "destructive",
 };
 
 const typeConfig: Record<string, TxVisualConfig> = {
   income: {
     icon: ArrowDownLeft,
-    color: "text-green-600",
-    sign: "+",
+    color: "text-emerald-500",
+    type: "income",
     badge: "secondary",
   },
   expense: defaultTxConfig,
   transfer: {
     icon: ArrowLeftRight,
-    color: "text-blue-600",
-    sign: "",
+    color: "text-blue-500",
+    type: "neutral",
     badge: "outline",
   },
   investment: {
     icon: ArrowUpRight,
-    color: "text-amber-600",
-    sign: "-",
+    color: "text-amber-500",
+    type: "expense",
     badge: "default",
   },
 };
@@ -76,18 +69,23 @@ export const RecentTransactions = ({
   transactions,
 }: RecentTransactionsProps): React.ReactElement => {
   return (
-    <Card className="lg:col-span-4">
-      <CardHeader>
-        <CardTitle>Recent Transactions</CardTitle>
-        <CardDescription>Last 10 transactions</CardDescription>
+    <Card className="lg:col-span-4 glass border-white/5 shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <div className="space-y-1">
+          <CardTitle>Recent Transactions</CardTitle>
+          <CardDescription>Latest monetary movements</CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
         {transactions.length === 0 ? (
-          <div className="text-muted-foreground flex h-48 items-center justify-center text-sm">
-            No transactions yet
-          </div>
+           <EmptyState
+            icon={FileText}
+            title="No transactions yet"
+            description="You haven't recorded any transactions. They will appear here once added."
+            className="min-h-[250px] border-none"
+          />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 pt-2">
             {transactions.map((tx) => {
               const config = typeConfig[tx.type] ?? defaultTxConfig;
               const Icon = config.icon;
@@ -95,31 +93,32 @@ export const RecentTransactions = ({
               return (
                 <div
                   key={tx.id}
-                  className="flex items-center justify-between gap-4"
+                  className="group flex items-center justify-between gap-4 rounded-xl p-2 transition-colors hover:bg-muted/50"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-muted flex size-8 items-center justify-center rounded-full">
-                      <Icon className={cn("size-4", config.color)} />
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-background border shadow-sm">
+                      <Icon className={cn("size-4.5", config.color)} />
                     </div>
-                    <div>
-                      <p className="text-sm leading-none font-medium">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium leading-none">
                         {tx.note ?? tx.categoryName ?? tx.type}
                       </p>
-                      <div className="mt-1 flex items-center gap-1.5">
-                        <Badge variant={config.badge} className="text-[10px]">
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <Badge variant={config.badge} className="text-[9px] uppercase px-1.5 py-0 leading-tight">
                           {tx.type}
                         </Badge>
-                        <span className="text-muted-foreground text-xs">
+                        <span className="truncate text-xs text-muted-foreground">
                           {tx.accountName}
                           {tx.toAccountName ? ` → ${tx.toAccountName}` : ""}
                         </span>
                       </div>
                     </div>
                   </div>
-                  <span className={cn("text-sm font-medium", config.color)}>
-                    {config.sign}
-                    {formatCurrency(tx.amount)}
-                  </span>
+                  <FinancialDisplay
+                    amount={tx.amount}
+                    type={config.type}
+                    className="text-sm shrink-0"
+                  />
                 </div>
               );
             })}
