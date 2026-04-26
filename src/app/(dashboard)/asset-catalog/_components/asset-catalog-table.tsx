@@ -162,6 +162,7 @@ export const AssetCatalogTable = ({
           </CardDescription>
         </div>
         <Button
+          data-global-action="add"
           type="button"
           size="sm"
           className="shrink-0"

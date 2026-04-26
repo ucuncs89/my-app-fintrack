@@ -189,7 +189,7 @@ export const AccountList = ({
   return (
     <>
       <div className="flex flex-wrap items-center justify-end gap-2 mb-6">
-        <Button type="button" onClick={() => setCreateOpen(true)}>
+        <Button data-global-action="add" type="button" onClick={() => setCreateOpen(true)}>
           <Plus className="size-4 mr-2" />
           Add account
         </Button>

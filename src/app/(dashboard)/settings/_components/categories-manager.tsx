@@ -143,6 +143,7 @@ export const CategoriesManager = ({
           </CardDescription>
         </div>
         <Button
+          data-global-action="add"
           type="button"
           size="sm"
           className="shrink-0"
