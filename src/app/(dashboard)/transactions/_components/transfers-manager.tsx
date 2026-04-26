@@ -142,6 +142,7 @@ export const TransfersManager = ({
         </p>
         <Button
           id="xfer-add-btn"
+          data-global-action="add"
           type="button"
           size="sm"
           className="gap-1.5"

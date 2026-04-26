@@ -176,6 +176,7 @@ export const AccountsInSettings = ({
           {accounts.length} account{accounts.length !== 1 ? 's' : ''} configured
         </p>
         <Button
+          data-global-action="add"
           type="button"
           size="sm"
           variant="outline"

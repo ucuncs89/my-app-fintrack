@@ -173,7 +173,7 @@ export const BudgetList = ({
   return (
     <>
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button type="button" onClick={() => setCreateOpen(true)}>
+        <Button data-global-action="add" type="button" onClick={() => setCreateOpen(true)}>
           <Plus className="size-4" />
           Add budget
         </Button>

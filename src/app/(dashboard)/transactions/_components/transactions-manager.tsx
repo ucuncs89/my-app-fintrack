@@ -447,6 +447,7 @@ export const TransactionsManager = ({
         {/* Add button */}
         <Button
           id="tx-add-btn"
+          data-global-action="add"
           type="button"
           size="sm"
           className="shrink-0 gap-1.5"
